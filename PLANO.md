@@ -180,12 +180,19 @@ Objetivo: gerenciamento total em ≤3 cliques, nunca travar, sempre indicar esta
 
 ### 6.1.6. Página 3 — Desbloqueio (PAM)
 
-- `Adw.SwitchRow "Usar digital para login e sudo"`:
+- `Adw.SwitchRow "Usar digital para login e sudo"` (switch master, único ponto de escrita):
   - subtitle dinâmico: `Ativado (with-fingerprint)` | `Desativado` | `Aplicando...`.
   - Toggle dispara `pkexec authselect ...` async. Durante apply: switch `sensitive=false` + spinner.
   - Falha polkit (cancelado): volta ao estado anterior + `Toast "Autenticação cancelada"`.
 - `Adw.ExpanderRow "Detalhe do sistema"` expandido por padrão:
-  - `ActionRow` monospace com saída de `authselect current`, botão `Copiar`.
+  - `ActionRow` monospace com saída de `authselect current`, botão `Copiar`
+    com `valign=center` (nunca esticar na altura da row).
+- Grupo `Por serviço (somente leitura)` com `ActionRow "Login (GDM)"` e `"sudo"`:
+  - subtitle `Ativo/Inativo/Desconhecido`, resolvido seguindo `include/substack`
+    do `/etc/pam.d` até `pam_fprintd` (`backend/pam.py`, só leitura).
+  - Descrição do grupo explica: authselect tem um único controle; toggle
+    separado exigiria editar `/etc/pam.d` na mão (sobrescrito no próximo
+    apply, risco de travar o login) — por isso não é oferecido.
 - Sem `authselect` no PATH: switch `sensitive=false`, subtitle
   `authselect não encontrado (ex. Ubuntu usa pam-auth-update)`. Nunca esconder a page.
 

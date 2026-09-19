@@ -112,6 +112,8 @@ class ManagerWindow(Adw.ApplicationWindow):
         self._enrolled: list[str] = []
         self._pam_enabled = False
         self._pam_text = ""
+        self._sudo_active: bool | None = None
+        self._login_active: bool | None = None
         self._loading = False
         self._block_pam_signal = False
         self._block_device_signal = False
@@ -315,9 +317,28 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.row_pam_detail.set_title("authselect current")
         btn_copy_pam = Gtk.Button.new_from_icon_name("edit-copy-symbolic")
         btn_copy_pam.set_tooltip_text("Copiar saída")
+        btn_copy_pam.set_valign(Gtk.Align.CENTER)
         btn_copy_pam.connect("clicked", lambda *_: self._copy_text(self._pam_text))
         self.row_pam_detail.add_suffix(btn_copy_pam)
         self.exp_pam.add_row(self.row_pam_detail)
+
+        grp_services = Adw.PreferencesGroup.new()
+        grp_services.set_title("Por serviço (somente leitura)")
+        grp_services.set_description(
+            "O authselect tem um único controle (with-fingerprint) para os dois; "
+            "alternar separado exigiria editar /etc/pam.d na mão e pode travar o login."
+        )
+        self.page_pam.add(grp_services)
+
+        self.row_svc_login = Adw.ActionRow.new()
+        self.row_svc_login.set_title("Login (GDM)")
+        self.row_svc_login.set_subtitle("verificando...")
+        grp_services.add(self.row_svc_login)
+
+        self.row_svc_sudo = Adw.ActionRow.new()
+        self.row_svc_sudo.set_title("sudo")
+        self.row_svc_sudo.set_subtitle("verificando...")
+        grp_services.add(self.row_svc_sudo)
 
         # 4. Tray
         self.page_tray = Adw.PreferencesPage.new()
@@ -421,6 +442,8 @@ class ManagerWindow(Adw.ApplicationWindow):
                 enrolled = fprintd.list_enrolled_fingers(fprintd.current_user(), dev)
             pam_ok, pam_text = pam.current_profile_text()
             pam_on = pam.is_enabled() if pam_ok else False
+            sudo_active = pam.sudo_fingerprint_active()
+            login_active = pam.login_fingerprint_active()
             return {
                 "devices": devices,
                 "dev": dev,
@@ -428,6 +451,8 @@ class ManagerWindow(Adw.ApplicationWindow):
                 "enrolled": enrolled,
                 "pam_on": pam_on,
                 "pam_text": pam_text if pam_ok else pam_text,
+                "sudo_active": sudo_active,
+                "login_active": login_active,
             }
 
         def _done(res):
@@ -441,6 +466,8 @@ class ManagerWindow(Adw.ApplicationWindow):
             self._enrolled = res["enrolled"]
             self._pam_enabled = res["pam_on"]
             self._pam_text = res["pam_text"]
+            self._sudo_active = res["sudo_active"]
+            self._login_active = res["login_active"]
             self._render_all()
             return False
 
@@ -544,6 +571,12 @@ class ManagerWindow(Adw.ApplicationWindow):
             self._block_pam_signal = False
         self.row_pam_detail.set_subtitle(
             (self._pam_text[:160] + "…") if len(self._pam_text) > 160 else self._pam_text
+        )
+        self.row_svc_login.set_subtitle(
+            f"Digital no login gráfico: {pam.service_label(self._login_active)}"
+        )
+        self.row_svc_sudo.set_subtitle(
+            f"Digital no sudo: {pam.service_label(self._sudo_active)}"
         )
 
         self._update_host_row()
