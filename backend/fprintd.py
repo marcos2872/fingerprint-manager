@@ -18,6 +18,11 @@ MANAGER_IFACE = "net.reactivated.Fprint.Manager"
 DEVICE_IFACE = "net.reactivated.Fprint.Device"
 PROPS_IFACE = "org.freedesktop.DBus.Properties"
 
+# Timeout finito para todo call_sync. Motivo: -1 = infinito congela a
+# thread chamadora; quando chamado na thread GTK (render), congela o
+# GNOME inteiro. 5s é suficiente para fprintd local responder.
+DBUS_TIMEOUT_MS = 5000
+
 FINGERS = [
     "left-thumb",
     "left-index-finger",
@@ -70,7 +75,7 @@ def get_devices() -> list[str]:
     try:
         proxy = _manager_proxy()
         result = proxy.call_sync(
-            "GetDevices", None, Gio.DBusCallFlags.NONE, -1, None
+            "GetDevices", None, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, None
         )
         return list(result.unpack()[0])
     except Exception:
@@ -81,7 +86,7 @@ def get_default_device() -> str | None:
     try:
         proxy = _manager_proxy()
         result = proxy.call_sync(
-            "GetDefaultDevice", None, Gio.DBusCallFlags.NONE, -1, None
+            "GetDefaultDevice", None, Gio.DBusCallFlags.NONE, DBUS_TIMEOUT_MS, None
         )
         path = result.unpack()[0]
         return path if path and path != "/" else None
@@ -89,9 +94,10 @@ def get_default_device() -> str | None:
         return None
 
 
-def resolve_device(configured: str = "auto") -> str | None:
+def resolve_device(configured: str = "auto", devices: list[str] | None = None) -> str | None:
     """'auto' -> default ou primeiro. Senão retorna o configurado se existir."""
-    devices = get_devices()
+    if devices is None:
+        devices = get_devices()
     if not devices:
         return None
     if configured and configured != "auto":
@@ -126,7 +132,7 @@ def get_device_props(device_path: str) -> dict:
                     "Get",
                     GLib.Variant("(ss)", (DEVICE_IFACE, key)),
                     Gio.DBusCallFlags.NONE,
-                    -1,
+                    DBUS_TIMEOUT_MS,
                     None,
                 )
                 val = res.unpack()[0]
@@ -160,7 +166,7 @@ def list_enrolled_fingers(username: str, device_path: str) -> list[str]:
             "ListEnrolledFingers",
             GLib.Variant("(s)", (username,)),
             Gio.DBusCallFlags.NONE,
-            -1,
+            DBUS_TIMEOUT_MS,
             None,
         )
         return list(result.unpack()[0])

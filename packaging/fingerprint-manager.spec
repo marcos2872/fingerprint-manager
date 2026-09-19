@@ -9,13 +9,10 @@ Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 Requires:       python3, python3-gobject, gtk4, libadwaita, vte291-gtk4
 Requires:       fprintd, authselect, polkit
-Recommends:     gnome-shell-extension-appindicator (para o tray aparecer no GNOME)
 
 %description
-App GTK4/Adwaita com tray próprio (StatusNotifierItem, sem extensão
-GNOME Shell) para gerenciar cadastro e desbloqueio por impressão
-digital via fprintd + authselect. Tray desativável; sem host SNI o
-app funciona 100%% como janela.
+App GTK4/Adwaita para gerenciar cadastro e desbloqueio por impressão
+digital via fprintd + authselect.
 
 %install
 mkdir -p %{buildroot}%{_bindir}
@@ -47,4 +44,4 @@ glib-compile-schemas %{_datadir}/glib-2.0/schemas &>/dev/null || :
 
 %changelog
 * Sat Sep 19 2026 dev <dev@example.com> - 0.1.0-1
-- Versão inicial (janela GTK4, Vte embutido, tray SNI opcional)
+- Versão inicial (janela GTK4, Vte embutido)

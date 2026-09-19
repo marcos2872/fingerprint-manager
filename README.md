@@ -3,11 +3,9 @@
 App GTK4/Adwaita para gerenciar **cadastro de digitais e desbloqueio por biometria**
 no Fedora/GNOME — sem extensão do GNOME Shell, sem congelar a top bar.
 
-- Janela real com 5 páginas: **Dispositivo · Digitais · Desbloqueio · Tray · Ajuda**
+- Janela real com 4 páginas: **Dispositivo · Digitais · Desbloqueio · Ajuda**
 - Cadastro/verificação via `fprintd-enroll` / `fprintd-verify` em terminal **Vte embutido**
 - Liga/desliga `with-fingerprint` via **authselect + pkexec** (nunca edita `/etc/pam.d` na mão)
-- **Tray próprio** StatusNotifierItem puro-D-Bus, **desativável** — sem host SNI
-  (GNOME 48–50 padrão) o app funciona 100% como janela
 - Genérico: qualquer leitor do `net.reactivated.Fprint` (Validity, Goodix, Synaptics, ELAN…)
 
 Detalhes de arquitetura e UI/UX normativa: ver [`PLANO.md`](PLANO.md).
@@ -17,8 +15,6 @@ Detalhes de arquitetura e UI/UX normativa: ver [`PLANO.md`](PLANO.md).
 ```bash
 sudo dnf install python3 python3-gobject gtk4 libadwaita vte291-gtk4 \
   fprintd authselect polkit gnome-control-center
-# opcional, só para o ícone do tray aparecer no GNOME:
-sudo dnf install gnome-shell-extension-appindicator
 ```
 
 ## Modo dev (rodar sem instalar)
@@ -28,11 +24,6 @@ cd /home/marcos/Projetos/fingerprint-manager
 ./run.sh
 # o script compila o schema local (data/) e exporta
 # GSETTINGS_SCHEMA_DIR + PYTHONPATH automaticamente
-
-# opções úteis:
-./run.sh --background        # inicia sem apresentar a janela (autostart)
-GSETTINGS_SCHEMA_DIR=data gsettings set org.example.fingerprint-manager show-tray false
-GSETTINGS_SCHEMA_DIR=data gsettings reset org.example.fingerprint-manager show-tray
 ```
 
 Atalhos: `Ctrl+R` recarrega · `Ctrl+Q` sai · `Esc` cancela enroll.
@@ -41,7 +32,6 @@ Diagnóstico:
 
 ```bash
 fprintd-list $USER
-busctl --session list | grep -i statusnotifier   # vazio = sem host, esperado no GNOME
 journalctl --user -f
 ```
 
@@ -78,7 +68,7 @@ O que o pacote instala:
 | schema GSettings | `/usr/share/glib-2.0/schemas/` |
 | atalho | `/usr/share/applications/fingerprint-manager.desktop` |
 
-Autostart opcional (pela página Tray do app ou manual):
+Autostart manual (abre a janela ao iniciar a sessão):
 
 ```bash
 cp /usr/share/applications/fingerprint-manager.desktop \
@@ -90,13 +80,12 @@ cp /usr/share/applications/fingerprint-manager.desktop \
 ```
 fingerprint-manager/
   PLANO.md                # arquitetura + spec UI/UX normativa
-  main.py                 # Adw.Application, --background, single-instance
+  main.py                 # Adw.Application single-instance
   backend/fprintd.py      # GetDevices, props, ListEnrolledFingers (Gio.DBusProxy)
   backend/pam.py          # wrapper authselect async + pkexec
   ui/window.py            # PreferencesWindow: 5 páginas + toasts
   ui/enroll_view.py       # Vte embutido para enroll/verify
-  ui/tray.py              # SNI puro-D-Bus (sem Gtk3)
-  data/*.gschema.xml      # show-tray, refresh, device-path
+  data/*.gschema.xml      # refresh, device-path
   data/*.desktop
   packaging/*.spec        # RPM Fedora
   run.sh                  # modo dev
@@ -104,7 +93,5 @@ fingerprint-manager/
 
 ## Notas honestas
 
-- **Tray no GNOME 48–50 Wayland:** não existe tray nativo; sem a extensão
-  AppIndicator o indicador registra mas não aparece. É opcional por desenho.
 - **Goodix:** precisa de `libfprint-tod` via COPR (ver Ajuda no app).
 - `NoEnrolledPrints` = zero digitais, não é erro.

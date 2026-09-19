@@ -12,7 +12,6 @@ I/O sempre em thread (nunca trava UI).
 
 from __future__ import annotations
 
-import os
 import subprocess
 import threading
 
@@ -27,9 +26,6 @@ from backend import fprintd, pam
 from ui.enroll_view import EnrollWindow
 
 APP_ID = "org.example.fingerprint-manager"
-AUTOSTART_PATH = os.path.expanduser(
-    "~/.config/autostart/fingerprint-manager.desktop"
-)
 
 
 class _Settings:
@@ -37,7 +33,7 @@ class _Settings:
 
     def __init__(self):
         self._g = None
-        self._mem = {"show-tray": True, "refresh": 30, "device-path": "auto"}
+        self._mem = {"refresh": 30, "device-path": "auto"}
         try:
             schema = Gio.SettingsSchemaSource.get_default()
             if schema and schema.lookup(APP_ID, True):
@@ -98,10 +94,9 @@ def run_in_thread(fn, on_done):
 
 
 class ManagerWindow(Adw.ApplicationWindow):
-    def __init__(self, app, tray=None):
+    def __init__(self, app):
         super().__init__(application=app)
         self.app = app
-        self.tray = tray
         self.settings = _Settings()
         self.set_title("Fingerprint Manager")
         self.set_default_size(880, 620)
@@ -109,13 +104,13 @@ class ManagerWindow(Adw.ApplicationWindow):
         self._devices: list[str] = []
         self._device_path: str | None = None
         self._props: dict = {}
+        self._device_labels: dict[str, str] = {}
         self._enrolled: list[str] = []
-        self._pam_enabled = False
         self._pam_text = ""
         self._sudo_active: bool | None = None
         self._login_active: bool | None = None
         self._loading = False
-        self._block_pam_signal = False
+        self._block_service = {"login": False, "sudo": False}
         self._block_device_signal = False
 
         self._build_shell()
@@ -301,13 +296,22 @@ class ManagerWindow(Adw.ApplicationWindow):
 
         grp_pam = Adw.PreferencesGroup.new()
         grp_pam.set_title("PAM / authselect")
+        grp_pam.set_description(
+            "Cada serviço é independente e altera só o próprio arquivo em /etc/pam.d."
+        )
         self.page_pam.add(grp_pam)
 
-        self.switch_pam = Adw.SwitchRow.new()
-        self.switch_pam.set_title("Usar digital para login e sudo")
-        self.switch_pam.set_subtitle("Desativado")
-        self.switch_pam.connect("notify::active", self._on_pam_toggled)
-        grp_pam.add(self.switch_pam)
+        self.switch_login = Adw.SwitchRow.new()
+        self.switch_login.set_title("Digital no login (GDM)")
+        self.switch_login.set_subtitle("verificando...")
+        self.switch_login.connect("notify::active", self._on_service_toggled, "login")
+        grp_pam.add(self.switch_login)
+
+        self.switch_sudo = Adw.SwitchRow.new()
+        self.switch_sudo.set_title("Digital no sudo")
+        self.switch_sudo.set_subtitle("verificando...")
+        self.switch_sudo.connect("notify::active", self._on_service_toggled, "sudo")
+        grp_pam.add(self.switch_sudo)
 
         self.exp_pam = Adw.ExpanderRow.new()
         self.exp_pam.set_title("Detalhe do sistema")
@@ -323,53 +327,24 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.exp_pam.add_row(self.row_pam_detail)
 
         grp_services = Adw.PreferencesGroup.new()
-        grp_services.set_title("Por serviço (somente leitura)")
+        grp_services.set_title("Arquivos gerenciados")
         grp_services.set_description(
-            "O authselect tem um único controle (with-fingerprint) para os dois; "
-            "alternar separado exigiria editar /etc/pam.d na mão e pode travar o login."
+            "login edita /etc/pam.d/gdm-fingerprint; sudo edita /etc/pam.d/sudo. "
+            "Nenhum dos dois é regenerado pelo authselect."
         )
         self.page_pam.add(grp_services)
 
-        self.row_svc_login = Adw.ActionRow.new()
-        self.row_svc_login.set_title("Login (GDM)")
-        self.row_svc_login.set_subtitle("verificando...")
-        grp_services.add(self.row_svc_login)
+        self.row_file_login = Adw.ActionRow.new()
+        self.row_file_login.set_title("Arquivo do login")
+        self.row_file_login.set_subtitle("/etc/pam.d/gdm-fingerprint")
+        grp_services.add(self.row_file_login)
 
-        self.row_svc_sudo = Adw.ActionRow.new()
-        self.row_svc_sudo.set_title("sudo")
-        self.row_svc_sudo.set_subtitle("verificando...")
-        grp_services.add(self.row_svc_sudo)
+        self.row_file_sudo = Adw.ActionRow.new()
+        self.row_file_sudo.set_title("Arquivo do sudo")
+        self.row_file_sudo.set_subtitle("/etc/pam.d/sudo")
+        grp_services.add(self.row_file_sudo)
 
-        # 4. Tray
-        self.page_tray = Adw.PreferencesPage.new()
-        self._stack_add(self.page_tray, "tray", "Tray", "status-symbolic")
-
-        grp_tray = Adw.PreferencesGroup.new()
-        grp_tray.set_title("Indicador")
-        self.page_tray.add(grp_tray)
-
-        self.switch_tray = Adw.SwitchRow.new()
-        self.switch_tray.set_title("Mostrar ícone na barra")
-        self.switch_tray.set_subtitle("StatusNotifierItem (opcional)")
-        self.switch_tray.set_active(self.settings.get_boolean("show-tray"))
-        self.switch_tray.connect("notify::active", self._on_tray_toggled)
-        grp_tray.add(self.switch_tray)
-
-        self.row_host = Adw.ActionRow.new()
-        self.row_host.set_title("Host StatusNotifier")
-        self.row_host.set_subtitle("verificando...")
-        btn_host = Gtk.Button.new_with_label("Verificar")
-        btn_host.connect("clicked", lambda *_: self._update_host_row())
-        self.row_host.add_suffix(btn_host)
-        grp_tray.add(self.row_host)
-
-        self.switch_autostart = Adw.SwitchRow.new()
-        self.switch_autostart.set_title("Iniciar com a sessão (--background)")
-        self.switch_autostart.set_active(os.path.exists(AUTOSTART_PATH))
-        self.switch_autostart.connect("notify::active", self._on_autostart_toggled)
-        grp_tray.add(self.switch_autostart)
-
-        # 5. Ajuda
+        # 4. Ajuda
         self.page_help = Adw.PreferencesPage.new()
         self._stack_add(self.page_help, "help", "Ajuda", "help-about-symbolic")
 
@@ -386,8 +361,8 @@ class ManagerWindow(Adw.ApplicationWindow):
         grp_help.add(row_logs)
 
         row_diag = Adw.ActionRow.new()
-        row_diag.set_title("Diagnóstico do tray")
-        row_diag.set_subtitle("busctl StatusNotifier + fprintd")
+        row_diag.set_title("Diagnóstico do sistema")
+        row_diag.set_subtitle("fprintd + authselect")
         btn_diag = Gtk.Button.new_with_label("Copiar")
         btn_diag.connect("clicked", lambda *_: self._copy_text(self._diag_text()))
         row_diag.add_suffix(btn_diag)
@@ -434,23 +409,31 @@ class ManagerWindow(Adw.ApplicationWindow):
         device_cfg = self.settings.get_string("device-path")
 
         def _load():
+            # Tudo bloqueante fica AQUI (thread), nunca no _done/_render.
             devices = fprintd.get_devices()
-            dev = fprintd.resolve_device(device_cfg)
-            props = fprintd.get_device_props(dev) if dev else {}
+            dev = fprintd.resolve_device(device_cfg, devices)
+            # Busca props de todos uma vez só (evita N roundtrips no render).
+            props_map: dict[str, dict] = {}
+            for d in devices:
+                try:
+                    props_map[d] = fprintd.get_device_props(d)
+                except Exception:
+                    props_map[d] = {}
+            props = props_map.get(dev, {}) if dev else {}
+            labels = {d: props_map.get(d, {}).get("name", d) for d in devices}
             enrolled: list[str] = []
             if dev:
                 enrolled = fprintd.list_enrolled_fingers(fprintd.current_user(), dev)
             pam_ok, pam_text = pam.current_profile_text()
-            pam_on = pam.is_enabled() if pam_ok else False
             sudo_active = pam.sudo_fingerprint_active()
             login_active = pam.login_fingerprint_active()
             return {
                 "devices": devices,
                 "dev": dev,
                 "props": props,
+                "labels": labels,
                 "enrolled": enrolled,
-                "pam_on": pam_on,
-                "pam_text": pam_text if pam_ok else pam_text,
+                "pam_text": pam_text,
                 "sudo_active": sudo_active,
                 "login_active": login_active,
             }
@@ -463,8 +446,8 @@ class ManagerWindow(Adw.ApplicationWindow):
             self._devices = res["devices"]
             self._device_path = res["dev"]
             self._props = res["props"]
+            self._device_labels = res.get("labels", {})
             self._enrolled = res["enrolled"]
-            self._pam_enabled = res["pam_on"]
             self._pam_text = res["pam_text"]
             self._sudo_active = res["sudo_active"]
             self._login_active = res["login_active"]
@@ -475,28 +458,19 @@ class ManagerWindow(Adw.ApplicationWindow):
 
     def _render_all(self):
         has_reader = bool(self._device_path)
-        # Banner persistente (spec 6.1.2): sem-leitor > sem-watcher
         if not has_reader:
             self.banner.set_title("Nenhum leitor encontrado. Verifique drivers.")
-            self.banner.set_revealed(True)
-        elif self.tray is not None and not self.tray.has_watcher():
-            self.banner.set_title(
-                "Tray indisponível neste GNOME — o app funciona como janela."
-            )
             self.banner.set_revealed(True)
         else:
             self.banner.set_revealed(False)
 
-        # device combo (sem disparar reload em cascata)
+        # device combo (sem disparar reload em cascata; labels já do _load)
         self._block_device_signal = True
         try:
             self.device_model.splice(0, self.device_model.get_n_items(), [])
             self.device_model.append("auto (padrão)")
             for d in self._devices:
-                try:
-                    label = fprintd.get_device_props(d).get("name", d)
-                except Exception:
-                    label = d
+                label = self._device_labels.get(d, d)
                 self.device_model.append(f"{label}  [{d}]")
             if self._device_path and self._device_path in self._devices:
                 idx = self._devices.index(self._device_path) + 1
@@ -555,37 +529,25 @@ class ManagerWindow(Adw.ApplicationWindow):
         elif not self.btn_verify.is_sensitive():
             self.btn_verify.set_tooltip_text("Cadastre ao menos uma digital primeiro")
 
-        # PAM
-        self._block_pam_signal = True
-        try:
-            self.switch_pam.set_active(self._pam_enabled)
-            if not pam.has_authselect():
-                self.switch_pam.set_sensitive(False)
-                self.switch_pam.set_subtitle("authselect não encontrado")
-            else:
-                self.switch_pam.set_sensitive(True)
-                self.switch_pam.set_subtitle(
-                    "Ativado (with-fingerprint)" if self._pam_enabled else "Desativado"
-                )
-        finally:
-            self._block_pam_signal = False
+        # PAM por serviço (switches independentes)
+        for service, switch, active in (
+            ("login", self.switch_login, self._login_active),
+            ("sudo", self.switch_sudo, self._sudo_active),
+        ):
+            self._block_service[service] = True
+            try:
+                if active is None:
+                    switch.set_sensitive(False)
+                    switch.set_subtitle("Não foi possível verificar")
+                else:
+                    switch.set_sensitive(True)
+                    switch.set_active(active)
+                    switch.set_subtitle("Ativado" if active else "Desativado")
+            finally:
+                self._block_service[service] = False
         self.row_pam_detail.set_subtitle(
             (self._pam_text[:160] + "…") if len(self._pam_text) > 160 else self._pam_text
         )
-        self.row_svc_login.set_subtitle(
-            f"Digital no login gráfico: {pam.service_label(self._login_active)}"
-        )
-        self.row_svc_sudo.set_subtitle(
-            f"Digital no sudo: {pam.service_label(self._sudo_active)}"
-        )
-
-        self._update_host_row()
-        if self.tray is not None:
-            self.tray.update(
-                enrolled_count=len(self._enrolled),
-                pam_enabled=self._pam_enabled,
-                device_name=str(name) if has_reader else "",
-            )
 
     # -- device ------------------------------------------------------
     def _on_device_changed(self, combo, _pspec):
@@ -703,16 +665,16 @@ class ManagerWindow(Adw.ApplicationWindow):
 
         run_in_thread(_load, _done)
 
-    # -- PAM ---------------------------------------------------------
-    def _on_pam_toggled(self, row, _pspec):
-        if self._block_pam_signal:
+    # -- PAM por serviço ---------------------------------------------
+    def _on_service_toggled(self, row, _pspec, service: str):
+        if self._block_service.get(service):
             return
         enable = row.get_active()
         row.set_sensitive(False)
         row.set_subtitle("Aplicando... (polkit vai pedir senha)")
 
         def _load():
-            return pam.set_enabled(enable)
+            return pam.set_service_enabled(service, enable)
 
         def _done(res):
             row.set_sensitive(True)
@@ -722,58 +684,24 @@ class ManagerWindow(Adw.ApplicationWindow):
                 ok, out = res
             if not ok:
                 # reverte visual
-                self._block_pam_signal = True
+                self._block_service[service] = True
                 try:
                     row.set_active(not enable)
                 finally:
-                    self._block_pam_signal = False
-                self.toast("Autenticação cancelada" if "polkit" in out.lower() or not out else f"Falha: {out[:120]}")
+                    self._block_service[service] = False
+                low = out.lower()
+                if "polkit" in low or "cancel" in low or "dismissed" in low or not out:
+                    self.toast("Autenticação cancelada")
+                else:
+                    self.toast(f"Falha: {out[:160]}")
             else:
-                self.toast("PAM atualizado.")
+                self.toast(
+                    "Login atualizado." if service == "login" else "sudo atualizado."
+                )
             self.refresh_all()
             return False
 
         run_in_thread(_load, _done)
-
-    # -- tray page ---------------------------------------------------
-    def _on_tray_toggled(self, row, _pspec):
-        active = row.get_active()
-        self.settings.set_boolean("show-tray", active)
-        if self.tray is None:
-            return
-        if active:
-            self.tray.start()
-            self.toast("Tray ativado.")
-        else:
-            self.tray.stop()
-            self.toast("Tray desativado (app segue aberto).")
-        self._update_host_row()
-
-    def _update_host_row(self):
-        if self.tray is not None and self.tray.has_watcher():
-            self.row_host.set_subtitle("Ativo — ícone visível")
-        else:
-            self.row_host.set_subtitle("Ausente — app segue como janela")
-
-    def _on_autostart_toggled(self, row, _pspec):
-        try:
-            if row.get_active():
-                os.makedirs(os.path.dirname(AUTOSTART_PATH), exist_ok=True)
-                with open(AUTOSTART_PATH, "w", encoding="utf-8") as f:
-                    f.write(
-                        "[Desktop Entry]\nType=Application\n"
-                        "Name=Fingerprint Manager\n"
-                        "Exec=fingerprint-manager --background\n"
-                        "Icon=fingerprint-symbolic\n"
-                        "X-GNOME-Autostart-enabled=true\n"
-                    )
-                self.toast("Autostart ativado.")
-            else:
-                if os.path.exists(AUTOSTART_PATH):
-                    os.remove(AUTOSTART_PATH)
-                self.toast("Autostart desativado.")
-        except Exception as e:
-            self.toast(f"Falha no autostart: {e}")
 
     def _start_auto_refresh(self):
         interval = max(5, min(120, self.settings.get_int("refresh")))
@@ -819,19 +747,6 @@ class ManagerWindow(Adw.ApplicationWindow):
         parts = []
         try:
             p = subprocess.run(
-                ["busctl", "--session", "list"],
-                capture_output=True,
-                text=True,
-                timeout=10,
-            )
-            parts.append(
-                "\n".join(l for l in p.stdout.splitlines() if "tatus" in l)
-                or "(sem watcher SNI)"
-            )
-        except Exception as e:
-            parts.append(f"busctl falhou: {e}")
-        try:
-            p = subprocess.run(
                 ["fprintd-list", fprintd.current_user()],
                 capture_output=True,
                 text=True,
@@ -840,6 +755,11 @@ class ManagerWindow(Adw.ApplicationWindow):
             parts.append(p.stdout + p.stderr)
         except Exception as e:
             parts.append(f"fprintd-list falhou: {e}")
+        try:
+            _ok, txt = pam.current_profile_text()
+            parts.append(txt or "(sem perfil authselect)")
+        except Exception as e:
+            parts.append(f"authselect falhou: {e}")
         return "\n---\n".join(parts)
 
     def _copy_text(self, text: str):

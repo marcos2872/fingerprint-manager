@@ -1,13 +1,17 @@
-"""Wrapper authselect (Fedora). Nunca editar /etc/pam.d na mão.
+"""PAM por serviço (login GDM vs sudo, independentes).
 
-Tudo sync aqui; a UI chama via thread para não travar.
-pkexec abre o diálogo de senha do sistema.
+Leitura: segue `include`/`substack` de /etc/pam.d até `pam_fprintd`
+(somente leitura, sem root).
 
-Por que não há toggle login-vs-sudo separado: o authselect expõe um único
-knob (`with-fingerprint`) que alimenta `system-auth` (sudo, su, login console)
-e `fingerprint-auth` (GDM). Separar de verdade exigiria editar /etc/pam.d na
-mão — o authselect sobrescreve no próximo apply e um erro trava o login.
-Por isso a escrita é só pelo master switch e o por-serviço é leitura.
+Escrita: insere/remove `auth sufficient pam_fprintd.so` no arquivo do
+próprio serviço (/etc/pam.d/gdm-fingerprint ou /etc/pam.d/sudo) via
+helper privilegiado (`pkexec python3 pam_helper.py`). `sufficient`
+nunca trava o login: se a digital falhar, cai para `pam_unix`.
+O helper faz backup + validação antes de trocar o arquivo.
+
+O switch master do authselect (`with-fingerprint`) foi removido: ele
+controlava os dois juntos e impedia o controle individual.
+`authselect current` segue exibido como detalhe do sistema.
 """
 
 from __future__ import annotations
@@ -15,10 +19,14 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 
-FEATURE = "with-fingerprint"
-BACKUP = "pre-fprint"
-PAM_DIR = "/etc/pam.d"
+PAM_DIR = os.environ.get("FPRINT_PAM_DIR", "/etc/pam.d")
+SERVICE_FILES = {
+    "login": os.path.join(PAM_DIR, "gdm-fingerprint"),
+    "sudo": os.path.join(PAM_DIR, "sudo"),
+}
+HELPER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pam_helper.py")
 
 
 def has_authselect() -> bool:
@@ -44,33 +52,34 @@ def current_profile_text() -> tuple[bool, str]:
 
 
 def is_enabled() -> bool:
-    """True se with-fingerprint ativo."""
-    if not has_authselect():
-        return False
-    ok, out = current_profile_text()
-    if not ok:
-        return False
-    if FEATURE in out:
-        return True
-    # fallback: is-feature-enabled (código 0 = ativo em algumas versões)
-    ok2, _ = _run(["authselect", "is-feature-enabled", FEATURE])
-    return ok2
+    """Compat: True se digital ativa em login OU sudo (switch master removido)."""
+    return sudo_fingerprint_active() is True or login_fingerprint_active() is True
 
 
-def set_enabled(enable: bool) -> tuple[bool, str]:
-    """Liga/desliga com backup + apply-changes. Usa pkexec."""
-    if not has_authselect():
-        return False, "authselect não disponível neste sistema."
-    action = "enable-feature" if enable else "disable-feature"
-    ok, out = _run(
-        ["pkexec", "authselect", action, FEATURE, f"--backup={BACKUP}"]
-    )
-    if not ok:
-        return False, out or "Falha ao alterar feature (polkit cancelado?)."
-    ok2, out2 = _run(["pkexec", "authselect", "apply-changes", "-b"])
-    if not ok2:
-        return False, out2 or "Falha em apply-changes."
-    return True, out2 or "OK"
+def set_service_enabled(service: str, enable: bool) -> tuple[bool, str]:
+    """Liga/desliga a digital só para um serviço, via helper com pkexec."""
+    if service not in SERVICE_FILES:
+        return False, f"serviço desconhecido: {service}"
+    try:
+        argv = [sys.executable, HELPER, service, "on" if enable else "off"]
+        if not os.environ.get("FPRINT_PAM_DIR"):
+            argv = ["pkexec", *argv]
+        p = subprocess.run(
+            argv,
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+    except FileNotFoundError as e:
+        return False, str(e)
+    except subprocess.TimeoutExpired:
+        return False, "timeout"
+    out = ((p.stdout or "") + (p.stderr or "")).strip()
+    if p.returncode != 0:
+        if "dismissed" in out.lower() or "cancel" in out.lower() or not out:
+            return False, "polkit cancelado"
+        return False, out or "Falha ao alterar o serviço."
+    return True, out or "OK"
 
 
 # --- Status por serviço (somente leitura) -------------------------------
