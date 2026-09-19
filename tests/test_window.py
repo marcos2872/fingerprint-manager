@@ -9,19 +9,26 @@ import os
 
 import pytest
 
-pytestmark = pytest.mark.skipif(
-    os.environ.get("RUN_GUI_TESTS") != "1",
-    reason="UI: requer display (rode com RUN_GUI_TESTS=1)",
-)
-
 gi = pytest.importorskip("gi")
-gi.require_version("Gtk", "4.0")
-gi.require_version("Adw", "1")
-from gi.repository import Adw, GLib, Gtk  # noqa: E402
+try:
+    gi.require_version("Gtk", "4.0")
+    gi.require_version("Adw", "1")
+    from gi.repository import Adw, GLib, Gtk  # noqa: E402
+    from ui.window import ManagerWindow  # noqa: E402
 
+    _UI_IMPORT_OK = True
+except (ImportError, ValueError):
+    # Sem typelibs (ex: Vte) ou sem GTK: os testes são pulados.
+    ManagerWindow = None  # type: ignore
+    _UI_IMPORT_OK = False
+
+pytestmark = pytest.mark.skipif(
+    os.environ.get("RUN_GUI_TESTS") != "1" or not _UI_IMPORT_OK,
+    reason="UI: requer display e typelibs GTK/Vte (rode com RUN_GUI_TESTS=1)",
+)
 from backend import fprintd, pam  # noqa: E402
 from backend import version as version_mod  # noqa: E402
-from ui.window import ManagerWindow  # noqa: E402
+# Adw/GLib/Gtk/ManagerWindow vieram do try acima; o skipif cobre a falta.
 
 
 @pytest.fixture()
