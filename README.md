@@ -17,6 +17,18 @@ sudo dnf install python3 python3-gobject gtk4 libadwaita vte291-gtk4 \
 python3 -m pip install --user pytest   # só para rodar os testes
 ```
 
+## Instalar no Fedora (via COPR)
+
+```bash
+sudo dnf copr enable marcos2872/fingerprint-manager
+sudo dnf install fingerprint-manager
+fingerprint-manager
+```
+
+> O COPR é um repo de terceiros (não é o repo oficial do Fedora):
+> precisa do `copr enable` uma vez. A entrada nos repos oficiais
+> (instalação direta sem enable) depende do Package Review.
+
 ## Modo dev (rodar sem instalar)
 
 ```bash
