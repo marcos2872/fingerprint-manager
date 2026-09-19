@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.marcos2872.fingerprint-manager</id>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <name>Fingerprint Manager</name>
+  <summary>Gerencie digitais e desbloqueio por impressão digital</summary>
+  <description>
+    <p>
+      App GTK4/Adwaita para gerenciar cadastro de digitais e desbloqueio
+      por biometria no Fedora/GNOME, via fprintd.
+    </p>
+    <p>
+      Permite cadastrar e verificar digitais, ver o leitor em uso e ativar
+      a digital no login (GDM) e no sudo de forma independente, com
+      fallback seguro para senha.
+    </p>
+  </description>
+  <launchable type="desktop-id">io.github.marcos2872.fingerprint-manager.desktop</launchable>
+  <icon type="stock">fingerprint-manager</icon>
+  <categories>
+    <category>Settings</category>
+    <category>Security</category>
+  </categories>
+  <keywords>
+    <keyword>fingerprint</keyword>
+    <keyword>biometria</keyword>
+    <keyword>fprintd</keyword>
+    <keyword>digital</keyword>
+  </keywords>
+  <url type="homepage">https://github.com/marcos2872/fingerprint-manager</url>
+  <url type="bugtracker">https://github.com/marcos2872/fingerprint-manager/issues</url>
+  <developer id="io.github.marcos2872">
+    <name>marcos2872</name>
+  </developer>
+  <content_rating type="oars-1.1" />
+  <releases>
+    <release version="1.1.0" date="2026-09-19">
+      <description>
+        <p>Versão com ícone do app, toggle do login cobrindo a tela de bloqueio, suite pytest e CI.</p>
+      </description>
+    </release>
+  </releases>
+</component>
