@@ -51,6 +51,8 @@ uv pip install --python .venv/bin/python pytest
 
 Fixtures PAM usam `FPRINT_PAM_DIR` (nunca encostam em `/etc/pam.d`).
 
+Lint: `ruff check .` (`python3 -m pip install --user ruff` uma vez).
+
 ## Gerar e instalar o RPM (Fedora)
 
 ```bash

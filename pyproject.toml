@@ -1,0 +1,8 @@
+# Lint: ruff check (só bugs — F: imports/vars inutilizados, nomes
+# indefinidos; E9: erros de sintaxe). Sem regras de estilo (E501 etc.)
+# para não gerar churn no código existente.
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["F", "E9"]

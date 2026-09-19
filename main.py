@@ -12,7 +12,7 @@ from gi.repository import Adw, Gio, GLib  # noqa: E402
 
 from ui.window import ManagerWindow
 
-APP_ID = "org.example.fingerprint-manager"
+from backend.version import APP_ID
 
 
 class FingerprintApp(Adw.Application):
