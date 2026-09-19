@@ -4,8 +4,6 @@ Cobre: include/substack, comentários, include quebrado -> None,
 loop entre arquivos, arquivo ausente -> None, labels.
 """
 
-import os
-
 import pytest
 
 from backend import pam
@@ -69,12 +67,6 @@ def test_comentarios_ignorados_e_loop_nao_trava(pamdir):
     _write(pamdir, "loop-a", "auth include loop-b\n")
     _write(pamdir, "loop-b", "auth include loop-a\n")
     assert pam.sudo_fingerprint_active() is False
-
-
-def test_service_label():
-    assert pam.service_label(True) == "Ativo"
-    assert pam.service_label(False) == "Inativo"
-    assert pam.service_label(None) == "Desconhecido"
 
 
 def test_is_enabled_compat(pamdir):

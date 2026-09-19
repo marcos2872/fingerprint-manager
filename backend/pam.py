@@ -29,6 +29,8 @@ SERVICE_FILES = {
     "sudo": ["sudo"],
 }
 HELPER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pam_helper.py")
+# pkexec pode esperar o usuário digitar a senha com calma.
+PKEXEC_TIMEOUT_S = 120
 
 
 def has_authselect() -> bool:
@@ -70,7 +72,7 @@ def set_service_enabled(service: str, enable: bool) -> tuple[bool, str]:
             argv,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=PKEXEC_TIMEOUT_S,
         )
     except FileNotFoundError as e:
         return False, str(e)
@@ -156,11 +158,3 @@ def sudo_fingerprint_active() -> bool | None:
 def login_fingerprint_active() -> bool | None:
     """Login gráfico: tela de login (gdm-fingerprint) + bloqueio (gdm-password)."""
     return _service_active(SERVICE_FILES["login"])
-
-
-def service_label(active: bool | None) -> str:
-    if active is True:
-        return "Ativo"
-    if active is False:
-        return "Inativo"
-    return "Desconhecido"

@@ -1,7 +1,5 @@
 """Escrita via backend/pam.py sem pkexec (FPRINT_PAM_DIR em tmp dir)."""
 
-import os
-
 import pytest
 
 from backend import pam

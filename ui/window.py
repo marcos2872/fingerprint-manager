@@ -1,17 +1,17 @@
-"""Janela principal — spec PLANO.md 6.1.
+"""Janela principal do app.
 
 Shell: Adw.ApplicationWindow + ToastOverlay + ToolbarView + ViewStack
-(padrão Settings moderno). Motivo: Adw.PreferencesWindow (AdwWindow)
-não permite titlebar custom nem Banner no topo — e a spec exige
-botão Recarregar + menu ≡ no header e Banner persistente.
-O conteúdo usa os mesmos componentes normativos (PreferencesPage/
-Group, ActionRow/ComboRow/SwitchRow/ExpanderRow, StatusPage).
+com PreferencesPages (Dispositivo, Digitais, Desbloqueio, Ajuda).
+ApplicationWindow (e não PreferencesWindow) porque o shell exige
+botão Recarregar + menu ≡ no header e Banner persistente no topo.
 
-I/O sempre em thread (nunca trava UI).
+I/O sempre em thread (nunca trava UI); decisão de labels em
+backend/ui_state.py (puro e testado).
 """
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import threading
 
@@ -22,10 +22,16 @@ gi.require_version("Adw", "1")
 gi.require_version("Gio", "2.0")
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from backend import fprintd, pam, version as version_mod
+from backend import fprintd, pam, ui_state
+from backend import version as version_mod
+from backend.version import APP_ID
 from ui.enroll_view import EnrollWindow
 
-APP_ID = "org.example.fingerprint-manager"
+log = logging.getLogger(__name__)
+
+# Timeouts de subprocess na UI (D-Bus usa DBUS_TIMEOUT_MS no backend).
+SUBPROCESS_TIMEOUT_S = 10
+DELETE_TIMEOUT_S = 30
 
 
 class _Settings:
@@ -180,7 +186,12 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.stack.add_titled_with_icon(page, name, title, icon)
 
     def _build_pages(self):
-        # 1. Dispositivo
+        self._build_device_page()
+        self._build_fingers_page()
+        self._build_pam_page()
+        self._build_help_page()
+
+    def _build_device_page(self):
         self.page_device = Adw.PreferencesPage.new()
         self._stack_add(self.page_device, "device", "Dispositivo", "drive-harddisk-usb-symbolic")
 
@@ -225,7 +236,7 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.page_device.add(grp_nodev_wrap)
         self._grp_nodev_wrap = grp_nodev_wrap
 
-        # 2. Digitais
+    def _build_fingers_page(self):
         self.page_fingers = Adw.PreferencesPage.new()
         self._stack_add(self.page_fingers, "fingers", "Digitais", "auth-fingerprint-symbolic")
 
@@ -291,7 +302,7 @@ class ManagerWindow(Adw.ApplicationWindow):
         actions_grid.attach(self.btn_sys_settings, 1, 1, 1, 1)
         self.grp_actions.add(actions_grid)
 
-        # 3. Desbloqueio (PAM)
+    def _build_pam_page(self):
         self.page_pam = Adw.PreferencesPage.new()
         self._stack_add(self.page_pam, "pam", "Desbloqueio", "security-high-symbolic")
 
@@ -330,8 +341,8 @@ class ManagerWindow(Adw.ApplicationWindow):
         grp_services = Adw.PreferencesGroup.new()
         grp_services.set_title("Arquivos gerenciados")
         grp_services.set_description(
-            "login edita /etc/pam.d/gdm-fingerprint; sudo edita /etc/pam.d/sudo. "
-            "Nenhum dos dois é regenerado pelo authselect."
+            "login edita gdm-fingerprint (login) + gdm-password (bloqueio); "
+            "sudo edita sudo. Nenhum é regenerado pelo authselect."
         )
         self.page_pam.add(grp_services)
 
@@ -345,7 +356,7 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.row_file_sudo.set_subtitle("/etc/pam.d/sudo")
         grp_services.add(self.row_file_sudo)
 
-        # 4. Ajuda
+    def _build_help_page(self):
         self.page_help = Adw.PreferencesPage.new()
         self._stack_add(self.page_help, "help", "Ajuda", "help-about-symbolic")
 
@@ -423,8 +434,8 @@ class ManagerWindow(Adw.ApplicationWindow):
     def toast(self, msg: str):
         try:
             self.toast_overlay.add_toast(Adw.Toast.new(msg))
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("toast falhou: %s", e)
 
     def refresh_all(self):
         if self._loading:
@@ -465,6 +476,7 @@ class ManagerWindow(Adw.ApplicationWindow):
         def _done(res):
             self._loading = False
             if isinstance(res, Exception):
+                log.warning("refresh falhou: %s", res)
                 self.toast(f"Falha ao recarregar: {res}")
                 return False
             self._devices = res["devices"]
@@ -512,18 +524,11 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.row_model.set_subtitle(str(name))
         self.row_type.set_subtitle(f"{stype} ({'deslize' if stype == 'swipe' else 'encoste'})")
         self.row_stages.set_subtitle(str(stages))
-        pam_on = self._login_active is True or self._sudo_active is True
-        if not has_reader:
-            unlock = "desativado (sem leitor)"
-        elif not self._enrolled:
-            unlock = "desativado (sem digitais)"
-        elif self._login_active is None and self._sudo_active is None:
-            unlock = "desconhecido"
-        elif not pam_on:
-            unlock = "desativado (PAM desligado)"
-        else:
-            unlock = "ativado"
-        self.row_unlock.set_subtitle(unlock)
+        self.row_unlock.set_subtitle(
+            ui_state.unlock_status(
+                has_reader, len(self._enrolled), self._login_active, self._sudo_active
+            )
+        )
         self.status_no_device.set_visible(not has_reader)
         self._grp_nodev_wrap.set_visible(not has_reader)
         self.grp_reader.set_visible(has_reader)
@@ -540,8 +545,8 @@ class ManagerWindow(Adw.ApplicationWindow):
                 theme = Gtk.IconTheme.get_for_display(display) if display else None
                 if theme is not None and theme.has_icon("auth-fingerprint-symbolic"):
                     r.add_prefix(Gtk.Image.new_from_icon_name("auth-fingerprint-symbolic"))
-            except Exception:
-                pass
+            except Exception as e:
+                log.debug("ícone da digital indisponível: %s", e)
             b = Gtk.Button.new_from_icon_name("user-trash-symbolic")
             b.set_tooltip_text(f"Apagar {fid}")
             b.add_css_class("flat")
@@ -570,20 +575,13 @@ class ManagerWindow(Adw.ApplicationWindow):
         ):
             self._block_service[service] = True
             try:
-                if active is None:
-                    switch.set_sensitive(False)
-                    switch.set_subtitle("Não foi possível verificar")
-                else:
-                    switch.set_sensitive(True)
+                switch.set_sensitive(active is not None)
+                if active is not None:
                     switch.set_active(active)
-                    switch.set_subtitle(
-                        "Desbloqueio ativado" if active else "Desbloqueio desativado"
-                    )
+                switch.set_subtitle(ui_state.pam_switch_subtitle(active))
             finally:
                 self._block_service[service] = False
-        self.row_pam_detail.set_subtitle(
-            (self._pam_text[:160] + "…") if len(self._pam_text) > 160 else self._pam_text
-        )
+        self.row_pam_detail.set_subtitle(ui_state.short(self._pam_text))
 
     # -- device ------------------------------------------------------
     def _on_device_changed(self, combo, _pspec):
@@ -660,22 +658,9 @@ class ManagerWindow(Adw.ApplicationWindow):
     def _do_delete_one(self, fid: str, resp: str):
         if resp != "delete":
             return
-
-        def _load():
-            user = fprintd.current_user()
-            return subprocess.run(
-                fprintd.delete_cmd(user, fid), capture_output=True, text=True, timeout=30
-            )
-
-        def _done(res):
-            if isinstance(res, Exception) or res.returncode != 0:
-                self.toast("Falha ao apagar.")
-            else:
-                self.toast("Digital apagada.")
-            self.refresh_all()
-            return False
-
-        run_in_thread(_load, _done)
+        self._run_delete(
+            fprintd.delete_cmd(fprintd.current_user(), fid), "Digital apagada."
+        )
 
     def confirm_delete_all(self):
         dlg = Adw.AlertDialog.new("Apagar todas as digitais?", "Isso remove todas do usuário atual.")
@@ -687,15 +672,22 @@ class ManagerWindow(Adw.ApplicationWindow):
     def _do_delete_all(self, resp: str):
         if resp != "delete":
             return
+        self._run_delete(fprintd.delete_cmd(fprintd.current_user()), "Todas apagadas.")
+
+    def _run_delete(self, argv: list[str], ok_msg: str):
+        """Roda fprintd-delete em thread, com toast + refresh."""
 
         def _load():
-            user = fprintd.current_user()
             return subprocess.run(
-                fprintd.delete_cmd(user), capture_output=True, text=True, timeout=30
+                argv, capture_output=True, text=True, timeout=DELETE_TIMEOUT_S
             )
 
         def _done(res):
-            self.toast("Todas apagadas." if not isinstance(res, Exception) and res.returncode == 0 else "Falha ao apagar.")
+            if isinstance(res, Exception) or res.returncode != 0:
+                log.warning("fprintd-delete falhou: %r", res)
+                self.toast("Falha ao apagar.")
+            else:
+                self.toast(ok_msg)
             self.refresh_all()
             return False
 
@@ -729,7 +721,7 @@ class ManagerWindow(Adw.ApplicationWindow):
                 if "polkit" in low or "cancel" in low or "dismissed" in low or not out:
                     self.toast("Autenticação cancelada")
                 else:
-                    self.toast(f"Falha: {out[:160]}")
+                    self.toast(f"Falha: {ui_state.short(out)}")
             else:
                 self.toast(
                     "Login atualizado." if service == "login" else "sudo atualizado."
@@ -811,10 +803,11 @@ class ManagerWindow(Adw.ApplicationWindow):
                 ["journalctl", "--user", "-n", "200", "--no-pager"],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=SUBPROCESS_TIMEOUT_S,
             )
             return p.stdout[-4000:] or "(sem logs)"
         except Exception as e:
+            log.warning("journalctl falhou: %s", e)
             return f"(falha ao ler logs: {e})"
 
     def _diag_text(self) -> str:
@@ -824,7 +817,7 @@ class ManagerWindow(Adw.ApplicationWindow):
                 ["fprintd-list", fprintd.current_user()],
                 capture_output=True,
                 text=True,
-                timeout=10,
+                timeout=SUBPROCESS_TIMEOUT_S,
             )
             parts.append(p.stdout + p.stderr)
         except Exception as e:
@@ -843,6 +836,6 @@ class ManagerWindow(Adw.ApplicationWindow):
                 display.get_clipboard().set(text)
                 self.toast("Copiado.")
                 return
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("copiar falhou: %s", e)
         self.toast("Falha ao copiar.")

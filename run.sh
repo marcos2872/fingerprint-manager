@@ -28,4 +28,8 @@ if [ -f data/org.example.fingerprint-manager.desktop ]; then
 fi
 export GSETTINGS_SCHEMA_DIR="$PWD/data"
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
+# Prefere a venv do uv (uv sync); cai para o python do sistema.
+if [ -x "$PWD/.venv/bin/python" ]; then
+  exec "$PWD/.venv/bin/python" main.py "$@"
+fi
 exec python3 main.py "$@"

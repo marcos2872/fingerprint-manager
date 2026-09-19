@@ -1,9 +1,9 @@
-"""Janela de Enroll/Verify com Vte embutido (spec 6.1.5).
+"""Janela de Enroll/Verify com Vte embutido.
 
-- NavigationPage separada vira Window própria porque a principal é
-  PreferencesWindow (não empilha NavigationView).
-- Instrução por scan-type + ProgressBar por num-enroll-stages.
-- Vte readonly como log técnico. Cancelar mata o subprocesso.
+Window própria (a principal é ApplicationWindow, não empilha
+NavigationView) com instrução por scan-type, ProgressBar por
+num-enroll-stages e Vte readonly como log técnico.
+Cancelar mata o subprocesso.
 """
 
 from __future__ import annotations
