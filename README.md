@@ -1,14 +1,13 @@
 # Fingerprint Manager
 
 App GTK4/Adwaita para gerenciar **cadastro de digitais e desbloqueio por biometria**
-no Fedora/GNOME — sem extensão do GNOME Shell, sem congelar a top bar.
+no Fedora/GNOME.
 
-- Janela real com 4 páginas: **Dispositivo · Digitais · Desbloqueio · Ajuda**
+- Janela com 4 páginas: **Dispositivo · Digitais · Desbloqueio · Ajuda**
 - Cadastro/verificação via `fprintd-enroll` / `fprintd-verify` em terminal **Vte embutido**
-- Liga/desliga `with-fingerprint` via **authselect + pkexec** (nunca edita `/etc/pam.d` na mão)
+- Digital para **login (GDM) e sudo de forma independente**, via helper
+  privilegiado (`pkexec`) com backup e validação
 - Genérico: qualquer leitor do `net.reactivated.Fprint` (Validity, Goodix, Synaptics, ELAN…)
-
-Detalhes de arquitetura e UI/UX normativa: ver [`PLANO.md`](PLANO.md).
 
 ## Requisitos (Fedora)
 
@@ -20,9 +19,8 @@ sudo dnf install python3 python3-gobject gtk4 libadwaita vte291-gtk4 \
 ## Modo dev (rodar sem instalar)
 
 ```bash
-cd /home/marcos/Projetos/fingerprint-manager
 ./run.sh
-# o script compila o schema local (data/) e exporta
+# compila o schema local (data/) e exporta
 # GSETTINGS_SCHEMA_DIR + PYTHONPATH automaticamente
 ```
 
@@ -35,17 +33,7 @@ fprintd-list $USER
 journalctl --user -f
 ```
 
-## Instalar o RPM no Fedora
-
-### Opção A — instalar o .rpm pronto
-
-```bash
-sudo dnf install ./dist/fingerprint-manager-0.1.0-1.fc*.noarch.rpm
-glib-compile-schemas /usr/share/glib-2.0/schemas   # o %post já faz isso
-fingerprint-manager
-```
-
-### Opção B — gerar o RPM a partir do source
+## Gerar e instalar o RPM (Fedora)
 
 ```bash
 sudo dnf install rpmdevtools rpm-build
@@ -53,7 +41,7 @@ rpmdev-setuptree
 VERSION=0.1.0
 tar --exclude=.git -czf ~/rpmbuild/SOURCES/fingerprint-manager-$VERSION.tar.gz \
   --transform "s,^,fingerprint-manager-$VERSION/," \
-  main.py backend ui data run.sh README.md PLANO.md packaging/fingerprint-manager.spec
+  main.py backend ui data run.sh README.md packaging/fingerprint-manager.spec
 rpmbuild -ba packaging/fingerprint-manager.spec
 # o rpm sai em ~/rpmbuild/RPMS/noarch/
 sudo dnf install ~/rpmbuild/RPMS/noarch/fingerprint-manager-*.rpm
@@ -79,11 +67,11 @@ cp /usr/share/applications/fingerprint-manager.desktop \
 
 ```
 fingerprint-manager/
-  PLANO.md                # arquitetura + spec UI/UX normativa
   main.py                 # Adw.Application single-instance
   backend/fprintd.py      # GetDevices, props, ListEnrolledFingers (Gio.DBusProxy)
-  backend/pam.py          # wrapper authselect async + pkexec
-  ui/window.py            # PreferencesWindow: 5 páginas + toasts
+  backend/pam.py          # leitura por serviço + escrita via helper/pkexec
+  backend/pam_helper.py   # edita /etc/pam.d como root (backup + validação)
+  ui/window.py            # ApplicationWindow + ViewStack com PreferencesPages
   ui/enroll_view.py       # Vte embutido para enroll/verify
   data/*.gschema.xml      # refresh, device-path
   data/*.desktop
@@ -95,3 +83,6 @@ fingerprint-manager/
 
 - **Goodix:** precisa de `libfprint-tod` via COPR (ver Ajuda no app).
 - `NoEnrolledPrints` = zero digitais, não é erro.
+- Login edita `/etc/pam.d/gdm-fingerprint`, sudo edita `/etc/pam.d/sudo`
+  (linha `sufficient`: falha cai para senha, nunca trava o login).
+  Backups em `/etc/pam.d/*.bak-fingerprint-manager-*`.
