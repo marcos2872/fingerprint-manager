@@ -106,6 +106,7 @@ fingerprint-manager/
 
 - **Goodix:** precisa de `libfprint-tod` via COPR (ver Ajuda no app).
 - `NoEnrolledPrints` = zero digitais, não é erro.
-- Login edita `/etc/pam.d/gdm-fingerprint`, sudo edita `/etc/pam.d/sudo`
+- Login edita `/etc/pam.d/gdm-fingerprint` (tela de login) e
+  `/etc/pam.d/gdm-password` (tela de bloqueio); sudo edita `/etc/pam.d/sudo`
   (linha `sufficient`: falha cai para senha, nunca trava o login).
   Backups em `/etc/pam.d/*.bak-fingerprint-manager-*`.

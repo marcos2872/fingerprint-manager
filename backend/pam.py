@@ -3,9 +3,10 @@
 Leitura: segue `include`/`substack` de /etc/pam.d até `pam_fprintd`
 (somente leitura, sem root).
 
-Escrita: insere/remove `auth sufficient pam_fprintd.so` no arquivo do
-próprio serviço (/etc/pam.d/gdm-fingerprint ou /etc/pam.d/sudo) via
-helper privilegiado (`pkexec python3 pam_helper.py`). `sufficient`
+Escrita: insere/remove `auth sufficient pam_fprintd.so` nos arquivos do
+próprio serviço via helper privilegiado (`pkexec python3 pam_helper.py`):
+login = /etc/pam.d/gdm-fingerprint (tela de login) + /etc/pam.d/gdm-password
+(tela de bloqueio); sudo = /etc/pam.d/sudo. `sufficient`
 nunca trava o login: se a digital falhar, cai para `pam_unix`.
 O helper faz backup + validação antes de trocar o arquivo.
 
@@ -23,8 +24,9 @@ import sys
 
 PAM_DIR = os.environ.get("FPRINT_PAM_DIR", "/etc/pam.d")
 SERVICE_FILES = {
-    "login": os.path.join(PAM_DIR, "gdm-fingerprint"),
-    "sudo": os.path.join(PAM_DIR, "sudo"),
+    # login = tela de login (gdm-fingerprint) + tela de bloqueio (gdm-password)
+    "login": ["gdm-fingerprint", "gdm-password"],
+    "sudo": ["sudo"],
 }
 HELPER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "pam_helper.py")
 
@@ -136,19 +138,24 @@ def _stack_uses_fprintd(service: str, _seen: set[str] | None = None) -> bool | N
     return None if unknown_chain else False
 
 
+def _service_active(files: list[str]) -> bool | None:
+    """True se TODOS os arquivos têm digital; None se algum é desconhecido."""
+    results = [_stack_uses_fprintd(f) for f in files]
+    if all(r is True for r in results):
+        return True
+    if any(r is None for r in results):
+        return None
+    return False
+
+
 def sudo_fingerprint_active() -> bool | None:
     """sudo resolve para system-auth; None = não foi possível determinar."""
-    return _stack_uses_fprintd("sudo")
+    return _service_active(SERVICE_FILES["sudo"])
 
 
 def login_fingerprint_active() -> bool | None:
-    """Login gráfico (GDM) resolve para fingerprint-auth."""
-    res = _stack_uses_fprintd("gdm-fingerprint")
-    if res is None:
-        res = _stack_uses_fprintd("fingerprint-auth")
-    if res is None:
-        res = _stack_uses_fprintd("login")
-    return res
+    """Login gráfico: tela de login (gdm-fingerprint) + bloqueio (gdm-password)."""
+    return _service_active(SERVICE_FILES["login"])
 
 
 def service_label(active: bool | None) -> str:

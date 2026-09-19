@@ -4,9 +4,10 @@ Executado como root via `pkexec python3 pam_helper.py <login|sudo> <on|off>`.
 Uso direto (sem pkexec) só funciona com FPRINT_PAM_DIR apontando para
 um diretório gravável — usado para testes.
 
-O que faz, de forma atômica (backup + tmp + os.replace):
+O que faz, de forma atômica por arquivo (backup + tmp + os.replace):
 - login on/off: insere/remove `auth sufficient pam_fprintd.so` no topo do
-  stack `auth` de /etc/pam.d/gdm-fingerprint.
+  stack `auth` de /etc/pam.d/gdm-fingerprint (tela de login) e de
+  /etc/pam.d/gdm-password (tela de bloqueio, que autentica por esse serviço).
 - sudo on/off: idem em /etc/pam.d/sudo.
 
 Segurança: a linha é `sufficient` (nunca bloqueia — cai para pam_unix) e
@@ -21,8 +22,13 @@ import time
 
 PAM_DIR = os.environ.get("FPRINT_PAM_DIR", "/etc/pam.d")
 SERVICES = {
-    "login": os.path.join(PAM_DIR, "gdm-fingerprint"),
-    "sudo": os.path.join(PAM_DIR, "sudo"),
+    # login = tela de login (GDM usa gdm-fingerprint) + tela de bloqueio
+    # (GNOME usa gdm-password). Os dois precisam da linha.
+    "login": [
+        os.path.join(PAM_DIR, "gdm-fingerprint"),
+        os.path.join(PAM_DIR, "gdm-password"),
+    ],
+    "sudo": [os.path.join(PAM_DIR, "sudo")],
 }
 AUTH_LINE = "auth sufficient pam_fprintd.so"
 
@@ -47,10 +53,8 @@ def _first_auth_index(lines: list[str]) -> int | None:
     return None
 
 
-def apply(service: str, enable: bool) -> str:
-    if service not in SERVICES:
-        raise SystemExit(f"serviço desconhecido: {service} (use login|sudo)")
-    path = SERVICES[service]
+def _apply_file(path: str, enable: bool) -> str:
+    """Aplica on/off em um arquivo. Retorna mensagem curta do resultado."""
     if not os.path.isfile(path):
         raise SystemExit(f"arquivo ausente: {path}")
     with open(path, encoding="utf-8", errors="replace") as f:
@@ -74,7 +78,7 @@ def apply(service: str, enable: bool) -> str:
     new_text = "\n".join(lines) + "\n"
     # Invariantes: nada além da nossa linha pode mudar; se pam_unix estava
     # lá (arquivo próprio; pode vir via `include`), tem que continuar.
-    # Nota: sudo/gdm-fingerprint normalmente trazem pam_unix via include.
+    # Nota: sudo/gdm-* normalmente trazem pam_unix via include.
     if "pam_unix" in "\n".join(original) and "pam_unix" not in new_text:
         raise SystemExit("validação falhou: pam_unix sumiu — nada foi alterado")
     if _first_auth_index(lines) is None:
@@ -95,7 +99,19 @@ def apply(service: str, enable: bool) -> str:
     with open(tmp, "w", encoding="utf-8") as f:
         f.write(new_text)
     os.replace(tmp, path)
-    return f"OK ({'ativado' if enable else 'desativado'}, backup em {backup})"
+    return "ativado" if enable else "desativado"
+
+
+def apply(service: str, enable: bool) -> str:
+    if service not in SERVICES:
+        raise SystemExit(f"serviço desconhecido: {service} (use login|sudo)")
+    results = []
+    for path in SERVICES[service]:
+        try:
+            results.append(f"{os.path.basename(path)}: {_apply_file(path, enable)}")
+        except SystemExit as e:
+            raise SystemExit(f"{os.path.basename(path)}: {e}")
+    return "OK (" + "; ".join(results) + ")"
 
 
 def main(argv: list[str]) -> int:

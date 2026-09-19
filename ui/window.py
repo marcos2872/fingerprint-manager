@@ -336,8 +336,8 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.page_pam.add(grp_services)
 
         self.row_file_login = Adw.ActionRow.new()
-        self.row_file_login.set_title("Arquivo do login")
-        self.row_file_login.set_subtitle("/etc/pam.d/gdm-fingerprint")
+        self.row_file_login.set_title("Arquivos do login")
+        self.row_file_login.set_subtitle("gdm-fingerprint (login) + gdm-password (bloqueio)")
         grp_services.add(self.row_file_login)
 
         self.row_file_sudo = Adw.ActionRow.new()

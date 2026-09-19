@@ -23,7 +23,8 @@ Todo `call_sync` usa timeout finito (`DBUS_TIMEOUT_MS = 5000` em `backend/fprint
 
 - Leitura é direta em `/etc/pam.d` (segue `include`/`substack`); escrita **só** via
   helper como root: `pkexec python3 pam_helper.py <login|sudo> <on|off>`.
-- `login` edita `/etc/pam.d/gdm-fingerprint`, `sudo` edita `/etc/pam.d/sudo`.
+- `login` edita `/etc/pam.d/gdm-fingerprint` (tela de login) e
+  `/etc/pam.d/gdm-password` (tela de bloqueio), `sudo` edita `/etc/pam.d/sudo`.
   Linha sempre `sufficient` (falha cai para senha, nunca trava o login).
 - Helper garante: idempotência, backup `.bak-fingerprint-manager-<data>`, escrita
   atômica (`tmp` + `os.replace`), recusa se o stack `auth` ficar vazio.
