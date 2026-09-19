@@ -75,11 +75,13 @@ rm -f ~/.local/share/icons/hicolor/scalable/apps/fingerprint-manager.svg
 
 PAM: o `dnf remove` **não** desfaz as linhas de digital em `/etc/pam.d`.
 Antes de desinstalar, desligue os dois switches na aba Desbloqueio —
-ou restaure os backups manualmente:
+ou restaure os backups manualmente (troque a data pela que o `ls` mostrar;
+`<...>` não pode ir literal no comando, o shell interpreta como redireção):
 
 ```bash
-sudo cp /etc/pam.d/sudo.bak-fingerprint-manager-<data> /etc/pam.d/sudo
-sudo cp /etc/pam.d/gdm-fingerprint.bak-fingerprint-manager-<data> /etc/pam.d/gdm-fingerprint
+ls /etc/pam.d/*.bak-fingerprint-manager-*
+sudo cp /etc/pam.d/sudo.bak-fingerprint-manager-20260919-191157 /etc/pam.d/sudo
+sudo cp /etc/pam.d/gdm-fingerprint.bak-fingerprint-manager-20260919-191128 /etc/pam.d/gdm-fingerprint
 grep -r pam_fprintd /etc/pam.d/ || echo "limpo"
 ```
 
