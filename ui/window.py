@@ -22,7 +22,7 @@ gi.require_version("Adw", "1")
 gi.require_version("Gio", "2.0")
 from gi.repository import Adw, Gdk, Gio, GLib, Gtk  # noqa: E402
 
-from backend import fprintd, pam
+from backend import fprintd, pam, version as version_mod
 from ui.enroll_view import EnrollWindow
 
 APP_ID = "org.example.fingerprint-manager"
@@ -118,6 +118,7 @@ class ManagerWindow(Adw.ApplicationWindow):
         self._bind_keys()
         self._start_auto_refresh()
         self.refresh_all()
+        self._check_updates()
 
     # -- shell: header + banner + stack -------------------------------
     def _build_shell(self):
@@ -377,6 +378,29 @@ class ManagerWindow(Adw.ApplicationWindow):
         row_keys.set_title("Atalhos")
         row_keys.set_subtitle("Ctrl+R recarregar, Ctrl+Q sair")
         grp_help.add(row_keys)
+
+        grp_about = Adw.PreferencesGroup.new()
+        grp_about.set_title("Sobre")
+        self.page_help.add(grp_about)
+
+        self.row_version = Adw.ActionRow.new()
+        self.row_version.set_title("Versão do app")
+        self.row_version.set_subtitle(
+            f"{version_mod.APP_VERSION} (verificando atualizações...)"
+        )
+        grp_about.add(self.row_version)
+
+        self.row_update = Adw.ActionRow.new()
+        self.row_update.set_title("Atualização")
+        self.row_update.set_subtitle("verificando...")
+        self.btn_update = Gtk.Button.new_with_label("Abrir release")
+        self.btn_update.set_tooltip_text("Abrir a release no GitHub")
+        self.btn_update.set_valign(Gtk.Align.CENTER)
+        self.btn_update.set_visible(False)
+        self.btn_update.connect("clicked", lambda *_: self._open_release())
+        self.row_update.add_suffix(self.btn_update)
+        grp_about.add(self.row_update)
+        self._release_url: str | None = None
 
     def _bind_keys(self):
         ctl = Gtk.ShortcutController.new()
@@ -713,6 +737,43 @@ class ManagerWindow(Adw.ApplicationWindow):
 
         GLib.timeout_add_seconds(interval, _tick)
 
+    # -- atualização (release no GitHub) -----------------------------
+    def _check_updates(self):
+        """Busca a latest release em thread; sugere update se houver."""
+
+        def _done(res):
+            if isinstance(res, Exception) or not res:
+                self.row_version.set_subtitle(
+                    f"{version_mod.APP_VERSION} (não foi possível verificar)"
+                )
+                self.row_update.set_subtitle("Não foi possível verificar")
+                return False
+            tag, url = res
+            self.row_version.set_subtitle(version_mod.APP_VERSION)
+            if version_mod.is_newer(tag):
+                self._release_url = url
+                self.row_update.set_subtitle(f"Nova versão disponível: {tag}")
+                self.btn_update.set_visible(True)
+                t = Adw.Toast.new(f"Nova versão disponível: {tag}")
+                t.set_button_label("Ver release")
+                t.connect("button-clicked", lambda *_: self._open_release())
+                try:
+                    self.toast_overlay.add_toast(t)
+                except Exception:
+                    pass
+            else:
+                self.row_update.set_subtitle("Você está na versão mais recente")
+            return False
+
+        run_in_thread(version_mod.fetch_latest, _done)
+
+    def _open_release(self):
+        url = self._release_url or version_mod.REPO_URL
+        try:
+            Gtk.show_uri(self, url, Gdk.CURRENT_TIME)
+        except Exception as e:
+            self.toast(f"Falha ao abrir: {e}")
+
     # -- ações header/ajuda ------------------------------------------
     def _act_open_settings(self, _act, _param):
         try:
@@ -726,9 +787,9 @@ class ManagerWindow(Adw.ApplicationWindow):
     def _act_about(self, _act, _param):
         dlg = Adw.AboutDialog.new()
         dlg.set_application_name("Fingerprint Manager")
-        dlg.set_version("0.1.0")
+        dlg.set_version(version_mod.APP_VERSION)
         dlg.set_comments("Gerencie digitais e desbloqueio por impressão digital.")
-        dlg.set_website("https://github.com/anomalyco/opencode")
+        dlg.set_website(version_mod.REPO_URL)
         dlg.present(self)
 
     def _logs_text(self) -> str:

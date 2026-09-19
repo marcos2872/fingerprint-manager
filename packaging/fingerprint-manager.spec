@@ -1,5 +1,5 @@
 Name:           fingerprint-manager
-Version:        0.1.0
+Version:        1.0.0
 Release:        1%{?dist}
 Summary:        Gerenciador de impressão digital (GTK4/Adwaita + fprintd + authselect)
 License:        MIT
@@ -43,5 +43,7 @@ glib-compile-schemas %{_datadir}/glib-2.0/schemas &>/dev/null || :
 %{_datadir}/applications/fingerprint-manager.desktop
 
 %changelog
+* Sat Sep 19 2026 dev <dev@example.com> - 1.0.0-1
+- v1: toggles de digital por serviço, sem tray
 * Sat Sep 19 2026 dev <dev@example.com> - 0.1.0-1
 - Versão inicial (janela GTK4, Vte embutido)
