@@ -182,7 +182,7 @@ class ManagerWindow(Adw.ApplicationWindow):
     def _build_pages(self):
         # 1. Dispositivo
         self.page_device = Adw.PreferencesPage.new()
-        self._stack_add(self.page_device, "device", "Dispositivo", "hardware-usb-symbolic")
+        self._stack_add(self.page_device, "device", "Dispositivo", "drive-harddisk-usb-symbolic")
 
         self.grp_reader = Adw.PreferencesGroup.new()
         self.grp_reader.set_title("Leitor")
@@ -205,9 +205,9 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.row_stages = Adw.ActionRow.new()
         self.row_stages.set_title("Etapas")
         self.grp_reader.add(self.row_stages)
-        self.row_present = Adw.ActionRow.new()
-        self.row_present.set_title("Dedo presente")
-        self.grp_reader.add(self.row_present)
+        self.row_unlock = Adw.ActionRow.new()
+        self.row_unlock.set_title("Desbloqueio por digital")
+        self.grp_reader.add(self.row_unlock)
 
         self.status_no_device = Adw.StatusPage.new()
         self.status_no_device.set_icon_name("computer-fail-symbolic")
@@ -227,7 +227,7 @@ class ManagerWindow(Adw.ApplicationWindow):
 
         # 2. Digitais
         self.page_fingers = Adw.PreferencesPage.new()
-        self._stack_add(self.page_fingers, "fingers", "Digitais", "fingerprint-symbolic")
+        self._stack_add(self.page_fingers, "fingers", "Digitais", "auth-fingerprint-symbolic")
 
         self.grp_fingers = Adw.PreferencesGroup.new()
         self.grp_fingers.set_title("0 de 10 dedos cadastrados")
@@ -239,7 +239,7 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.grp_fingers.add(self.finger_rows_box)
 
         self.status_no_fingers = Adw.StatusPage.new()
-        self.status_no_fingers.set_icon_name("fingerprint-symbolic")
+        self.status_no_fingers.set_icon_name("auth-fingerprint-symbolic")
         self.status_no_fingers.set_title("Nenhuma digital")
         self.status_no_fingers.set_description(
             "Cadastre ao menos um dedo para desbloquear com biometria."
@@ -509,11 +509,21 @@ class ManagerWindow(Adw.ApplicationWindow):
         name = self._props.get("name", "—")
         stype = self._props.get("scan-type", "—")
         stages = self._props.get("num-enroll-stages", "—")
-        present = self._props.get("finger-present", False)
         self.row_model.set_subtitle(str(name))
         self.row_type.set_subtitle(f"{stype} ({'deslize' if stype == 'swipe' else 'encoste'})")
         self.row_stages.set_subtitle(str(stages))
-        self.row_present.set_subtitle("sim" if present else "não")
+        pam_on = self._login_active is True or self._sudo_active is True
+        if not has_reader:
+            unlock = "desativado (sem leitor)"
+        elif not self._enrolled:
+            unlock = "desativado (sem digitais)"
+        elif self._login_active is None and self._sudo_active is None:
+            unlock = "desconhecido"
+        elif not pam_on:
+            unlock = "desativado (PAM desligado)"
+        else:
+            unlock = "ativado"
+        self.row_unlock.set_subtitle(unlock)
         self.status_no_device.set_visible(not has_reader)
         self._grp_nodev_wrap.set_visible(not has_reader)
         self.grp_reader.set_visible(has_reader)
@@ -528,8 +538,8 @@ class ManagerWindow(Adw.ApplicationWindow):
             try:
                 display = Gdk.Display.get_default()
                 theme = Gtk.IconTheme.get_for_display(display) if display else None
-                if theme is not None and theme.has_icon("fingerprint-symbolic"):
-                    r.add_prefix(Gtk.Image.new_from_icon_name("fingerprint-symbolic"))
+                if theme is not None and theme.has_icon("auth-fingerprint-symbolic"):
+                    r.add_prefix(Gtk.Image.new_from_icon_name("auth-fingerprint-symbolic"))
             except Exception:
                 pass
             b = Gtk.Button.new_from_icon_name("user-trash-symbolic")
@@ -566,7 +576,9 @@ class ManagerWindow(Adw.ApplicationWindow):
                 else:
                     switch.set_sensitive(True)
                     switch.set_active(active)
-                    switch.set_subtitle("Ativado" if active else "Desativado")
+                    switch.set_subtitle(
+                        "Desbloqueio ativado" if active else "Desbloqueio desativado"
+                    )
             finally:
                 self._block_service[service] = False
         self.row_pam_detail.set_subtitle(
