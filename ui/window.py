@@ -787,6 +787,7 @@ class ManagerWindow(Adw.ApplicationWindow):
     def _act_about(self, _act, _param):
         dlg = Adw.AboutDialog.new()
         dlg.set_application_name("Fingerprint Manager")
+        dlg.set_application_icon("fingerprint-manager")
         dlg.set_version(version_mod.APP_VERSION)
         dlg.set_comments("Gerencie digitais e desbloqueio por impressão digital.")
         dlg.set_website(version_mod.REPO_URL)

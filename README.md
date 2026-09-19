@@ -41,7 +41,7 @@ rpmdev-setuptree
 VERSION=0.1.0
 tar --exclude=.git -czf ~/rpmbuild/SOURCES/fingerprint-manager-$VERSION.tar.gz \
   --transform "s,^,fingerprint-manager-$VERSION/," \
-  main.py backend ui data run.sh README.md packaging/fingerprint-manager.spec
+  main.py backend ui data assets run.sh README.md AGENTS.md LICENSE RELEASE.md packaging/fingerprint-manager.spec
 rpmbuild -ba packaging/fingerprint-manager.spec
 # o rpm sai em ~/rpmbuild/RPMS/noarch/
 sudo dnf install ~/rpmbuild/RPMS/noarch/fingerprint-manager-*.rpm
@@ -75,6 +75,7 @@ fingerprint-manager/
   ui/enroll_view.py       # Vte embutido para enroll/verify
   data/*.gschema.xml      # refresh, device-path
   data/*.desktop
+  assets/icon.svg         # ícone do app (hicolor scalable)
   packaging/*.spec        # RPM Fedora
   run.sh                  # modo dev
 ```

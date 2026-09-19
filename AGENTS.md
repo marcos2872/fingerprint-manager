@@ -31,6 +31,13 @@ Todo `call_sync` usa timeout finito (`DBUS_TIMEOUT_MS = 5000` em `backend/fprint
   `pam.py` e `pam_helper.py` honram a variável. Nunca rode o helper sem o
   override contra `/etc/pam.d` em testes.
 
+## Releases
+
+Procedimento completo em `RELEASE.md` (versão em `backend/version.py` +
+spec, build do RPM, release com descrição do que mudou + `.rpm` anexado).
+Regra crítica: a tag (`vX.Y.Z`) precisa ser numericamente maior que
+`APP_VERSION`, senão o aviso de update na aba Ajuda não dispara.
+
 ## Não fazer
 
 - Não reintroduzir tray/StatusNotifier (removido de propósito; era a causa do freeze).

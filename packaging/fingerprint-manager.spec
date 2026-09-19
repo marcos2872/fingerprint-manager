@@ -29,6 +29,9 @@ install -m644 data/org.example.fingerprint-manager.gschema.xml \
   %{buildroot}%{_datadir}/glib-2.0/schemas/
 install -m644 data/fingerprint-manager.desktop \
   %{buildroot}%{_datadir}/applications/
+mkdir -p %{buildroot}%{_datadir}/icons/hicolor/scalable/apps
+install -m644 assets/icon.svg \
+  %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/fingerprint-manager.svg
 
 cat > %{buildroot}%{_bindir}/fingerprint-manager <<'EOF'
 #!/usr/bin/env bash
@@ -38,12 +41,18 @@ chmod 755 %{buildroot}%{_bindir}/fingerprint-manager
 
 %post
 glib-compile-schemas %{_datadir}/glib-2.0/schemas &>/dev/null || :
+touch --no-create %{_datadir}/icons/hicolor &>/dev/null || :
+gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+
+%postun
+gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 
 %files
 %{_bindir}/fingerprint-manager
 %{_datadir}/%{name}/
 %{_datadir}/glib-2.0/schemas/org.example.fingerprint-manager.gschema.xml
 %{_datadir}/applications/fingerprint-manager.desktop
+%{_datadir}/icons/hicolor/scalable/apps/fingerprint-manager.svg
 
 %changelog
 * Sat Sep 19 2026 dev <dev@example.com> - 1.0.0-1
