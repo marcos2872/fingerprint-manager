@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Fingerprint Manager
+Comment=Gerencie digitais e desbloqueio por impressão digital
+Exec=fingerprint-manager --background
+Icon=fingerprint-symbolic
+Terminal=false
+Categories=Settings;Security;
+Keywords=fingerprint;biometria;fprintd;authselect;
+StartupNotify=true
+X-GNOME-SingleWindow=true

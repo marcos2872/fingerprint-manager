@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.example.fingerprint-manager" path="/org/example/fingerprint-manager/">
+    <key name="show-tray" type="b">
+      <default>true</default>
+      <summary>Mostrar ícone na barra</summary>
+      <description>Registra StatusNotifierItem no session bus. Desligável, nunca obrigatório.</description>
+    </key>
+    <key name="refresh" type="i">
+      <range min="5" max="120"/>
+      <default>30</default>
+      <summary>Intervalo de atualização (s)</summary>
+      <description>Intervalo para recarregar lista de digitais e estado PAM.</description>
+    </key>
+    <key name="device-path" type="s">
+      <default>'auto'</default>
+      <summary>Dispositivo fprintd</summary>
+      <description>'auto' usa GetDefaultDevice ou o primeiro de GetDevices.</description>
+    </key>
+  </schema>
+</schemalist>
