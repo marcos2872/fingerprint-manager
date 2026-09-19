@@ -27,7 +27,7 @@ install -m755 main.py %{buildroot}%{_datadir}/%{name}/main.py
 cp -a backend ui %{buildroot}%{_datadir}/%{name}/
 install -m644 data/org.example.fingerprint-manager.gschema.xml \
   %{buildroot}%{_datadir}/glib-2.0/schemas/
-install -m644 data/fingerprint-manager.desktop \
+install -m644 data/org.example.fingerprint-manager.desktop \
   %{buildroot}%{_datadir}/applications/
 mkdir -p %{buildroot}%{_datadir}/icons/hicolor/scalable/apps
 install -m644 assets/icon.svg \
@@ -51,7 +51,7 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %{_bindir}/fingerprint-manager
 %{_datadir}/%{name}/
 %{_datadir}/glib-2.0/schemas/org.example.fingerprint-manager.gschema.xml
-%{_datadir}/applications/fingerprint-manager.desktop
+%{_datadir}/applications/org.example.fingerprint-manager.desktop
 %{_datadir}/icons/hicolor/scalable/apps/fingerprint-manager.svg
 
 %changelog

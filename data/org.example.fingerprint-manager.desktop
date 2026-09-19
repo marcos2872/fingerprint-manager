@@ -8,4 +8,5 @@ Terminal=false
 Categories=Settings;Security;
 Keywords=fingerprint;biometria;fprintd;authselect;
 StartupNotify=true
+StartupWMClass=org.example.fingerprint-manager
 X-GNOME-SingleWindow=true

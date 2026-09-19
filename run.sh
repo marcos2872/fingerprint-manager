@@ -14,6 +14,18 @@ if [ -f assets/icon.svg ]; then
     gtk-update-icon-cache -f -t "$HOME/.local/share/icons/hicolor" >/dev/null 2>&1 || true
   fi
 fi
+# Atalho dev: sem .desktop instalado o GNOME não associa a janela ao ícone
+# (mostra o genérico). Instala um apontando para este run.sh.
+if [ -f data/org.example.fingerprint-manager.desktop ]; then
+  APP_DIR="$HOME/.local/share/applications"
+  mkdir -p "$APP_DIR" 2>/dev/null || true
+  sed "s|^Exec=.*|Exec=$PWD/run.sh|" \
+    data/org.example.fingerprint-manager.desktop \
+    > "$APP_DIR/org.example.fingerprint-manager.desktop" 2>/dev/null || true
+  if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
+  fi
+fi
 export GSETTINGS_SCHEMA_DIR="$PWD/data"
 export PYTHONPATH="$PWD:${PYTHONPATH:-}"
 exec python3 main.py "$@"

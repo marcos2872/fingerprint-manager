@@ -54,13 +54,33 @@ O que o pacote instala:
 | `fingerprint-manager` (launcher) | `/usr/bin/` |
 | app (`main.py`, `backend/`, `ui/`) | `/usr/share/fingerprint-manager/` |
 | schema GSettings | `/usr/share/glib-2.0/schemas/` |
-| atalho | `/usr/share/applications/fingerprint-manager.desktop` |
+| atalho | `/usr/share/applications/org.example.fingerprint-manager.desktop` |
 
 Autostart manual (abre a janela ao iniciar a sessão):
 
 ```bash
-cp /usr/share/applications/fingerprint-manager.desktop \
-   ~/.config/autostart/fingerprint-manager.desktop
+cp /usr/share/applications/org.example.fingerprint-manager.desktop \
+   ~/.config/autostart/org.example.fingerprint-manager.desktop
+```
+
+## Desinstalar
+
+```bash
+sudo dnf remove fingerprint-manager
+rm -f ~/.config/autostart/org.example.fingerprint-manager.desktop
+# restos do modo dev (run.sh instala atalho + ícone locais):
+rm -f ~/.local/share/applications/org.example.fingerprint-manager.desktop
+rm -f ~/.local/share/icons/hicolor/scalable/apps/fingerprint-manager.svg
+```
+
+PAM: o `dnf remove` **não** desfaz as linhas de digital em `/etc/pam.d`.
+Antes de desinstalar, desligue os dois switches na aba Desbloqueio —
+ou restaure os backups manualmente:
+
+```bash
+sudo cp /etc/pam.d/sudo.bak-fingerprint-manager-<data> /etc/pam.d/sudo
+sudo cp /etc/pam.d/gdm-fingerprint.bak-fingerprint-manager-<data> /etc/pam.d/gdm-fingerprint
+grep -r pam_fprintd /etc/pam.d/ || echo "limpo"
 ```
 
 ## Layout do repo
