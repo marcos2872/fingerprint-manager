@@ -14,6 +14,9 @@ Requires:       fprintd, authselect, polkit
 App GTK4/Adwaita para gerenciar cadastro e desbloqueio por impressão
 digital via fprintd + authselect.
 
+%prep
+%setup -q
+
 %install
 mkdir -p %{buildroot}%{_bindir}
 mkdir -p %{buildroot}%{_datadir}/%{name}
