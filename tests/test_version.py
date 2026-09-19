@@ -8,8 +8,8 @@ from backend import version as v
 
 
 def test_is_newer():
-    assert v.is_newer("v1.0.1") is True
-    assert v.is_newer("1.1.0") is True
+    assert v.is_newer("v1.0.1", "1.0.0") is True
+    assert v.is_newer("1.1.0", "1.0.0") is True
     assert v.is_newer("v" + v.APP_VERSION) is False
     assert v.is_newer("v0.9.9") is False
     assert v.is_newer("abc") is False
