@@ -6,17 +6,16 @@ Testes pytest em `tests/`; CI no GitHub (`.github/workflows/tests.yml`).
 
 ## Rodar e verificar
 
-- Dev: `./run.sh` (compila schemas, exporta `GSETTINGS_SCHEMA_DIR` + `PYTHONPATH`).
+- Dev: `uv sync` uma vez; `uv run ./run.sh` (usa `.venv`; sem uv, `./run.sh`
+  usa o python3 do sistema). A venv precisa de `--system-site-packages`
+  (`uv venv --system-site-packages`) porque o `gi`/GTK vem do sistema.
 - Sem display, só dá para verificar imports, não rodar a UI:
   `GSETTINGS_SCHEMA_DIR=data PYTHONPATH=. python3 -c "import main, ui.window"`
 - `python3 -m py_compile main.py backend/*.py ui/*.py` após qualquer edição.
-- Lint: `ruff check .` (config em `pyproject.toml`: só F+E9, sem estilo).
-  Instalar uma vez: `python3 -m pip install --user ruff`.
-- Testes: `pytest tests/` (backend headless); UI só com display:
-  `RUN_GUI_TESTS=1 pytest tests/`. Com uv: `uv venv --system-site-packages`
-  uma vez + `uv pip install --python .venv/bin/python pytest` (o `gi` é do
-  sistema; `.venv/` é gitignored). Fixtures PAM via `FPRINT_PAM_DIR`, nunca
-  `/etc/pam.d` real.
+- Lint: `uv run ruff check .` (config em `pyproject.toml`: só F+E9, sem estilo).
+- Testes: `uv run pytest tests/` (backend headless); UI só com display:
+  `RUN_GUI_TESTS=1 uv run pytest tests/`. Deps de dev em `[dependency-groups]`
+  do `pyproject.toml`. Fixtures PAM via `FPRINT_PAM_DIR`, nunca `/etc/pam.d` real.
 - Alterou `data/*.gschema.xml`? Rode `glib-compile-schemas data/` (`data/gschemas.compiled` é artefato gitignored).
 - Chaves GSettings atuais: `refresh`, `device-path`. `show-tray` foi removida — não reintroduzir.
 

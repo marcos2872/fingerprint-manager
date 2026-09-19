@@ -20,10 +20,13 @@ python3 -m pip install --user pytest   # só para rodar os testes
 ## Modo dev (rodar sem instalar)
 
 ```bash
-./run.sh
-# compila o schema local (data/) e exporta
-# GSETTINGS_SCHEMA_DIR + PYTHONPATH automaticamente
+uv sync                               # uma vez (cria .venv com gi do sistema)
+uv run ./run.sh                       # roda o app
+# sem uv: ./run.sh usa o python3 do sistema
 ```
+
+O `run.sh` compila o schema local (`data/`), instala ícone + atalho dev em
+`~/.local/share` e prefere `.venv/bin/python` quando existe.
 
 Atalhos: `Ctrl+R` recarrega · `Ctrl+Q` sai · `Esc` cancela enroll.
 
@@ -37,21 +40,17 @@ journalctl --user -f
 ## Testes
 
 ```bash
-pytest tests/                      # backend (headless, D-Bus e rede mockados)
-RUN_GUI_TESTS=1 pytest tests/      # inclui UI (precisa de display)
+uv run pytest tests/                  # backend (headless, D-Bus e rede mockados)
+RUN_GUI_TESTS=1 uv run pytest tests/  # inclui UI (precisa de display)
 ```
 
-Com `uv` (o `gi` vem do sistema, por isso `--system-site-packages`):
-
-```bash
-uv venv --system-site-packages     # uma vez
-uv pip install --python .venv/bin/python pytest
-.venv/bin/python -m pytest tests/
-```
+Setup uma vez: `uv venv --system-site-packages && uv sync` (o `gi`/GTK vem
+do sistema; sem isso o `import gi` falha na venv isolada). `.venv/` é
+gitignored. Sem uv: `pytest` / `python3 -m pip install --user pytest ruff`.
 
 Fixtures PAM usam `FPRINT_PAM_DIR` (nunca encostam em `/etc/pam.d`).
 
-Lint: `ruff check .` (`python3 -m pip install --user ruff` uma vez).
+Lint: `uv run ruff check .`.
 
 ## Gerar e instalar o RPM (Fedora)
 
