@@ -259,25 +259,39 @@ class ManagerWindow(Adw.ApplicationWindow):
         self.btn_enroll.add_css_class("suggested-action")
         self.btn_enroll.set_tooltip_text("Cadastrar nova digital")
         self.btn_enroll.connect("clicked", lambda *_: self.open_enroll_chooser())
-        self.grp_actions.add(self.btn_enroll)
 
         self.btn_verify = Gtk.Button.new_with_label("Verificar")
         self.btn_verify.set_tooltip_text("Verificar digital cadastrada")
         self.btn_verify.connect("clicked", lambda *_: self.open_verify())
-        self.grp_actions.add(self.btn_verify)
 
         self.btn_delete_all = Gtk.Button.new_with_label("Apagar todas")
         self.btn_delete_all.add_css_class("destructive-action")
         self.btn_delete_all.set_tooltip_text("Apaga todas as digitais do usuário")
         self.btn_delete_all.connect("clicked", lambda *_: self.confirm_delete_all())
-        self.grp_actions.add(self.btn_delete_all)
 
         self.btn_sys_settings = Gtk.Button.new_with_label("Abrir Ajustes")
         self.btn_sys_settings.set_tooltip_text("Abrir Contas de usuário do GNOME")
         self.btn_sys_settings.connect(
             "clicked", lambda *_: self._act_open_settings(None, None)
         )
-        self.grp_actions.add(self.btn_sys_settings)
+
+        # Grade 2x2 homogênea: botões com mesma altura e gaps de 12px
+        actions_grid = Gtk.Grid.new()
+        actions_grid.set_column_homogeneous(True)
+        actions_grid.set_column_spacing(12)
+        actions_grid.set_row_spacing(12)
+        for b in (
+            self.btn_enroll,
+            self.btn_verify,
+            self.btn_delete_all,
+            self.btn_sys_settings,
+        ):
+            b.set_size_request(-1, 44)
+        actions_grid.attach(self.btn_enroll, 0, 0, 1, 1)
+        actions_grid.attach(self.btn_verify, 1, 0, 1, 1)
+        actions_grid.attach(self.btn_delete_all, 0, 1, 1, 1)
+        actions_grid.attach(self.btn_sys_settings, 1, 1, 1, 1)
+        self.grp_actions.add(actions_grid)
 
         # 3. Desbloqueio (PAM)
         self.page_pam = Adw.PreferencesPage.new()
@@ -486,7 +500,13 @@ class ManagerWindow(Adw.ApplicationWindow):
             r = Adw.ActionRow.new()
             r.set_title(fprintd.finger_label(fid))
             r.set_subtitle(fid)
-            r.add_prefix(Gtk.Image.new_from_icon_name("fingerprint-symbolic"))
+            try:
+                display = Gdk.Display.get_default()
+                theme = Gtk.IconTheme.get_for_display(display) if display else None
+                if theme is not None and theme.has_icon("fingerprint-symbolic"):
+                    r.add_prefix(Gtk.Image.new_from_icon_name("fingerprint-symbolic"))
+            except Exception:
+                pass
             b = Gtk.Button.new_from_icon_name("user-trash-symbolic")
             b.set_tooltip_text(f"Apagar {fid}")
             b.add_css_class("flat")

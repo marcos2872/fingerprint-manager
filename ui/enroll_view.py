@@ -9,8 +9,8 @@
 from __future__ import annotations
 
 import os
+import shutil
 import signal
-import threading
 
 import gi
 
@@ -70,29 +70,49 @@ class EnrollWindow(Adw.Window):
 
         self.set_content(box)
         self.connect("close-request", self._on_close)
+        self.term.connect("child-exited", self._on_child_exited)
         GLib.idle_add(self._spawn)
 
     def _spawn(self):
+        binary = shutil.which(self.argv[0]) if self.argv else None
+        if not binary:
+            self.info.set_text(f"Comando não encontrado: {self.argv[0] if self.argv else '?'}")
+            self.btn_done.set_sensitive(True)
+            return False
+        argv = [binary, *self.argv[1:]]
         try:
-            _ok, self._child_pid = self.term.spawn_async(
+            # spawn_async é assíncrono de verdade: retorna void, pid vem no callback.
+            self.term.spawn_async(
                 Vte.PtyFlags.DEFAULT,
                 os.path.expanduser("~"),
-                self.argv,
+                argv,
                 None,
-                GLib.SpawnFlags.DEFAULT,
+                GLib.SpawnFlags.SEARCH_PATH,
                 None,
                 None,
-                -1,
+                10000,
                 None,
+                self._on_spawned,
                 None,
             )
-            self.term.connect("child-exited", self._on_child_exited)
         except Exception as e:
             self.info.set_text(f"Falha ao iniciar: {e}")
             self.btn_done.set_sensitive(True)
         return False
 
+    def _on_spawned(self, _term, pid: int, error, _data):
+        if error is not None:
+            try:
+                msg = error.message
+            except Exception:
+                msg = str(error)
+            self.info.set_text(f"Falha ao iniciar: {msg}")
+            self.btn_done.set_sensitive(True)
+            return
+        self._child_pid = pid
+
     def _on_child_exited(self, _term, status: int):
+        self._child_pid = None
         ok = (status == 0)
         try:
             # heurística simples de progresso: sucesso = cheio
@@ -106,13 +126,6 @@ class EnrollWindow(Adw.Window):
             self.info.set_text("Concluído com sucesso. Clique em Concluir.")
         else:
             self.info.set_text("Falhou ou foi cancelado. Veja o log acima e tente de novo.")
-        # watch output para progresso incremental
-        return False
-
-    def _watch_progress(self):
-        # placeholder: fprintd-enroll não emite D-Bus de progresso aqui;
-        # mantemos heurística via texto no Vte em versões futuras.
-        return False
 
     def _cancel(self):
         try:
