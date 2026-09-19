@@ -9,6 +9,11 @@ Sem testes, sem CI, sem lint. Commits em Conventional Commits (`feat:`, `fix:`, 
 - Sem display, só dá para verificar imports, não rodar a UI:
   `GSETTINGS_SCHEMA_DIR=data PYTHONPATH=. python3 -c "import main, ui.window"`
 - `python3 -m py_compile main.py backend/*.py ui/*.py` após qualquer edição.
+- Testes: `pytest tests/` (backend headless); UI só com display:
+  `RUN_GUI_TESTS=1 pytest tests/`. Com uv: `uv venv --system-site-packages`
+  uma vez + `uv pip install --python .venv/bin/python pytest` (o `gi` é do
+  sistema; `.venv/` é gitignored). Fixtures PAM via `FPRINT_PAM_DIR`, nunca
+  `/etc/pam.d` real.
 - Alterou `data/*.gschema.xml`? Rode `glib-compile-schemas data/` (`data/gschemas.compiled` é artefato gitignored).
 - Chaves GSettings atuais: `refresh`, `device-path`. `show-tray` foi removida — não reintroduzir.
 

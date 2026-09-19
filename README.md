@@ -14,6 +14,7 @@ no Fedora/GNOME.
 ```bash
 sudo dnf install python3 python3-gobject gtk4 libadwaita vte291-gtk4 \
   fprintd authselect polkit gnome-control-center
+python3 -m pip install --user pytest   # só para rodar os testes
 ```
 
 ## Modo dev (rodar sem instalar)
@@ -32,6 +33,23 @@ Diagnóstico:
 fprintd-list $USER
 journalctl --user -f
 ```
+
+## Testes
+
+```bash
+pytest tests/                      # backend (headless, D-Bus e rede mockados)
+RUN_GUI_TESTS=1 pytest tests/      # inclui UI (precisa de display)
+```
+
+Com `uv` (o `gi` vem do sistema, por isso `--system-site-packages`):
+
+```bash
+uv venv --system-site-packages     # uma vez
+uv pip install --python .venv/bin/python pytest
+.venv/bin/python -m pytest tests/
+```
+
+Fixtures PAM usam `FPRINT_PAM_DIR` (nunca encostam em `/etc/pam.d`).
 
 ## Gerar e instalar o RPM (Fedora)
 
