@@ -28,7 +28,7 @@ mkdir -p %{buildroot}%{_datadir}/metainfo
 mkdir -p %{buildroot}%{_datadir}/dbus-1/services
 
 install -m755 main.py %{buildroot}%{_datadir}/%{name}/main.py
-cp -a backend ui %{buildroot}%{_datadir}/%{name}/
+cp -a backend ui assets %{buildroot}%{_datadir}/%{name}/
 find %{buildroot}%{_datadir}/%{name} -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || :
 install -m644 data/io.github.marcos2872.fingerprint-manager.gschema.xml \
   %{buildroot}%{_datadir}/glib-2.0/schemas/

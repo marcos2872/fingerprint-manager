@@ -118,6 +118,7 @@ fingerprint-manager/
   data/*.gschema.xml      # refresh, device-path
   data/*.desktop
   assets/icon.svg         # ícone do app (hicolor scalable)
+  assets/github-mark-symbolic.svg  # Octocat da aba Ajuda (via search-path)
   packaging/*.spec        # RPM Fedora
   run.sh                  # modo dev
 ```
