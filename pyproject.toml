@@ -1,7 +1,7 @@
 [project]
 # Versão canônica do app: backend/version.py (APP_VERSION). Manter igual.
 name = "fingerprint-manager"
-version = "1.2.0"
+version = "1.2.1"
 requires-python = ">=3.12"
 dependencies = []
 
