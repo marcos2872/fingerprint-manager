@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist>
-  <schema id="org.example.fingerprint-manager" path="/org/example/fingerprint-manager/">
+  <schema id="io.github.marcos2872.fingerprint-manager" path="/io/github/marcos2872/fingerprint-manager/">
     <key name="refresh" type="i">
       <range min="5" max="120"/>
       <default>30</default>

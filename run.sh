@@ -16,12 +16,12 @@ if [ -f assets/icon.svg ]; then
 fi
 # Atalho dev: sem .desktop instalado o GNOME não associa a janela ao ícone
 # (mostra o genérico). Instala um apontando para este run.sh.
-if [ -f data/org.example.fingerprint-manager.desktop ]; then
+if [ -f data/io.github.marcos2872.fingerprint-manager.desktop ]; then
   APP_DIR="$HOME/.local/share/applications"
   mkdir -p "$APP_DIR" 2>/dev/null || true
   sed "s|^Exec=.*|Exec=$PWD/run.sh|" \
-    data/org.example.fingerprint-manager.desktop \
-    > "$APP_DIR/org.example.fingerprint-manager.desktop" 2>/dev/null || true
+    data/io.github.marcos2872.fingerprint-manager.desktop \
+    > "$APP_DIR/io.github.marcos2872.fingerprint-manager.desktop" 2>/dev/null || true
   if command -v update-desktop-database >/dev/null 2>&1; then
     update-desktop-database "$APP_DIR" >/dev/null 2>&1 || true
   fi

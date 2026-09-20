@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 import subprocess
 import threading
+from pathlib import Path
 
 import gi
 
@@ -32,6 +33,36 @@ log = logging.getLogger(__name__)
 # Timeouts de subprocess na UI (D-Bus usa DBUS_TIMEOUT_MS no backend).
 SUBPROCESS_TIMEOUT_S = 10
 DELETE_TIMEOUT_S = 30
+
+# GitHub (página Ajuda): Octocat simbólico em assets/ registrado no
+# IconTheme via search-path; fallback é um ícone do Adwaita que sempre existe.
+GITHUB_ICON_NAME = "github-mark-symbolic"
+GITHUB_FALLBACK_ICON = "insert-link-symbolic"
+
+
+def _github_asset_dir() -> Path | None:
+    """Dir com github-mark-symbolic.svg (dev e instalado via RPM)."""
+    for cand in (
+        Path(__file__).resolve().parent.parent / "assets",
+        Path("/usr/share/fingerprint-manager/assets"),
+    ):
+        try:
+            if (cand / f"{GITHUB_ICON_NAME}.svg").is_file():
+                return cand
+        except Exception as e:
+            log.debug("sondagem do ícone github falhou em %s: %s", cand, e)
+    return None
+
+
+def _ensure_github_icon_path(theme) -> None:
+    try:
+        d = _github_asset_dir()
+        if d is None:
+            return
+        if str(d) not in theme.get_search_path():
+            theme.add_search_path(str(d))
+    except Exception as e:
+        log.debug("search-path do ícone github falhou: %s", e)
 
 
 class _Settings:
@@ -413,6 +444,34 @@ class ManagerWindow(Adw.ApplicationWindow):
         grp_about.add(self.row_update)
         self._release_url: str | None = None
 
+        self.row_github = Adw.ActionRow.new()
+        self.row_github.set_title("GitHub do projeto")
+        self.row_github.set_subtitle(version_mod.REPO_URL)
+        content = Adw.ButtonContent.new()
+        content.set_icon_name(self._github_icon_name())
+        content.set_label("Abrir")
+        self.btn_github = Gtk.Button.new()
+        self.btn_github.set_child(content)
+        self.btn_github.set_tooltip_text("Abrir o repositório no GitHub")
+        self.btn_github.set_valign(Gtk.Align.CENTER)
+        self.btn_github.connect("clicked", lambda *_: self._open_repo())
+        self.row_github.add_suffix(self.btn_github)
+        grp_about.add(self.row_github)
+
+    @staticmethod
+    def _github_icon_name() -> str:
+        """Octocat simbólico se o IconTheme achar, senão link genérico."""
+        try:
+            display = Gdk.Display.get_default()
+            theme = Gtk.IconTheme.get_for_display(display) if display else None
+            if theme is not None:
+                _ensure_github_icon_path(theme)
+                if theme.has_icon(GITHUB_ICON_NAME):
+                    return GITHUB_ICON_NAME
+        except Exception as e:
+            log.debug("lookup do ícone github falhou: %s", e)
+        return GITHUB_FALLBACK_ICON
+
     def _bind_keys(self):
         ctl = Gtk.ShortcutController.new()
         ctl.set_scope(Gtk.ShortcutScope.GLOBAL)
@@ -772,10 +831,16 @@ class ManagerWindow(Adw.ApplicationWindow):
         run_in_thread(version_mod.fetch_latest, _done)
 
     def _open_release(self):
-        url = self._release_url or version_mod.REPO_URL
+        self._open_url(self._release_url or version_mod.REPO_URL)
+
+    def _open_repo(self):
+        self._open_url(version_mod.REPO_URL)
+
+    def _open_url(self, url: str):
         try:
             Gtk.show_uri(self, url, Gdk.CURRENT_TIME)
         except Exception as e:
+            log.debug("abrir url falhou: %s", e)
             self.toast(f"Falha ao abrir: {e}")
 
     # -- ações header/ajuda ------------------------------------------

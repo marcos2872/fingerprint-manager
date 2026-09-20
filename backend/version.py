@@ -11,8 +11,8 @@ from __future__ import annotations
 import json
 import urllib.request
 
-APP_VERSION = "1.1.0"
-APP_ID = "org.example.fingerprint-manager"
+APP_VERSION = "1.2.0"
+APP_ID = "io.github.marcos2872.fingerprint-manager"
 GITHUB_REPO = "marcos2872/fingerprint-manager"
 REPO_URL = f"https://github.com/{GITHUB_REPO}"
 API_LATEST = f"https://api.github.com/repos/{GITHUB_REPO}/releases/latest"

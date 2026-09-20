@@ -95,3 +95,19 @@ def test_unlock_sem_leitor(window):
 
 def test_versao_exibida(window):
     assert version_mod.APP_VERSION in window.row_version.get_subtitle()
+
+
+def test_github_button_opens_repo(window, monkeypatch):
+    opened = {}
+    monkeypatch.setattr(
+        Gtk, "show_uri", lambda *a, **k: opened.setdefault("url", a[1])
+    )
+    assert version_mod.REPO_URL in window.row_github.get_subtitle()
+    content = window.btn_github.get_child()
+    assert content.get_label() == "Abrir"
+    assert content.get_icon_name() in (
+        "github-mark-symbolic",
+        "insert-link-symbolic",
+    )
+    window.btn_github.emit("clicked")
+    assert opened.get("url") == version_mod.REPO_URL

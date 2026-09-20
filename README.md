@@ -17,6 +17,18 @@ sudo dnf install python3 python3-gobject gtk4 libadwaita vte291-gtk4 \
 python3 -m pip install --user pytest   # só para rodar os testes
 ```
 
+## Instalar no Fedora (via COPR)
+
+```bash
+sudo dnf copr enable marcos2872/fingerprint-manager
+sudo dnf install fingerprint-manager
+fingerprint-manager
+```
+
+> O COPR é um repo de terceiros (não é o repo oficial do Fedora):
+> precisa do `copr enable` uma vez. A entrada nos repos oficiais
+> (instalação direta sem enable) depende do Package Review.
+
 ## Modo dev (rodar sem instalar)
 
 ```bash
@@ -73,22 +85,23 @@ O que o pacote instala:
 | `fingerprint-manager` (launcher) | `/usr/bin/` |
 | app (`main.py`, `backend/`, `ui/`) | `/usr/share/fingerprint-manager/` |
 | schema GSettings | `/usr/share/glib-2.0/schemas/` |
-| atalho | `/usr/share/applications/org.example.fingerprint-manager.desktop` |
+| atalho | `/usr/share/applications/io.github.marcos2872.fingerprint-manager.desktop` |
+| metainfo (loja) | `/usr/share/metainfo/io.github.marcos2872.fingerprint-manager.metainfo.xml` |
 
 Autostart manual (abre a janela ao iniciar a sessão):
 
 ```bash
-cp /usr/share/applications/org.example.fingerprint-manager.desktop \
-   ~/.config/autostart/org.example.fingerprint-manager.desktop
+cp /usr/share/applications/io.github.marcos2872.fingerprint-manager.desktop \
+   ~/.config/autostart/io.github.marcos2872.fingerprint-manager.desktop
 ```
 
 ## Desinstalar
 
 ```bash
 sudo dnf remove fingerprint-manager
-rm -f ~/.config/autostart/org.example.fingerprint-manager.desktop
+rm -f ~/.config/autostart/io.github.marcos2872.fingerprint-manager.desktop
 # restos do modo dev (run.sh instala atalho + ícone locais):
-rm -f ~/.local/share/applications/org.example.fingerprint-manager.desktop
+rm -f ~/.local/share/applications/io.github.marcos2872.fingerprint-manager.desktop
 rm -f ~/.local/share/icons/hicolor/scalable/apps/fingerprint-manager.svg
 ```
 
@@ -117,6 +130,7 @@ fingerprint-manager/
   data/*.gschema.xml      # refresh, device-path
   data/*.desktop
   assets/icon.svg         # ícone do app (hicolor scalable)
+  assets/github-mark-symbolic.svg  # Octocat da aba Ajuda (via search-path)
   packaging/*.spec        # RPM Fedora
   run.sh                  # modo dev
 ```
