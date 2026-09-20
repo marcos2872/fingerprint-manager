@@ -35,6 +35,11 @@
   </developer>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.2.0" date="2026-09-20">
+      <description>
+        <p>Versão publicável na loja: APP_ID válido, metainfo AppStream e service D-Bus; botão GitHub na Ajuda; instalação via COPR.</p>
+      </description>
+    </release>
     <release version="1.1.0" date="2026-09-19">
       <description>
         <p>Versão com ícone do app, toggle do login cobrindo a tela de bloqueio, suite pytest e CI.</p>
