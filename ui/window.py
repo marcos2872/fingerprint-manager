@@ -667,14 +667,15 @@ class ManagerWindow(Adw.ApplicationWindow):
         for fid, label in opts:
             dlg.add_response(fid, label)
         dlg.add_response("cancel", "Cancelar")
-        dlg.set_default_response("right-index-finger")
+        dlg.set_close_response("cancel")
+        dlg.set_default_response("cancel")
         dlg.choose(self, None, lambda d, r, _: on_pick(d.choose_finish(r)), None)
 
     def open_enroll_chooser(self):
         self._finger_chooser_dialog(self._on_finger_picked)
 
     def _on_finger_picked(self, fid: str):
-        if fid == "cancel":
+        if fid not in fprintd.FINGERS:
             return
         stages = int(self._props.get("num-enroll-stages", 5) or 5)
         stype = self._props.get("scan-type", "press")
@@ -712,6 +713,8 @@ class ManagerWindow(Adw.ApplicationWindow):
         dlg.add_response("cancel", "Cancelar")
         dlg.add_response("delete", "Apagar")
         dlg.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
+        dlg.set_close_response("cancel")
+        dlg.set_default_response("cancel")
         dlg.choose(self, None, lambda d, r, _: self._do_delete_one(fid, d.choose_finish(r)), None)
 
     def _do_delete_one(self, fid: str, resp: str):
@@ -726,6 +729,8 @@ class ManagerWindow(Adw.ApplicationWindow):
         dlg.add_response("cancel", "Cancelar")
         dlg.add_response("delete", "Apagar todas")
         dlg.set_response_appearance("delete", Adw.ResponseAppearance.DESTRUCTIVE)
+        dlg.set_close_response("cancel")
+        dlg.set_default_response("cancel")
         dlg.choose(self, None, lambda d, r, _: self._do_delete_all(d.choose_finish(r)), None)
 
     def _do_delete_all(self, resp: str):

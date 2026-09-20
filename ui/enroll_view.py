@@ -142,6 +142,7 @@ class EnrollWindow(Adw.Window):
             dlg.add_response("keep", "Continuar")
             dlg.add_response("stop", "Cancelar operação")
             dlg.set_response_appearance("stop", Adw.ResponseAppearance.DESTRUCTIVE)
+            dlg.set_close_response("keep")
             dlg.set_default_response("keep")
             dlg.choose(self, None, self._on_confirm_close, None)
             return True
