@@ -9,6 +9,15 @@ no Fedora/GNOME.
   privilegiado (`pkexec`) com backup e validação
 - Genérico: qualquer leitor do `net.reactivated.Fprint` (Validity, Goodix, Synaptics, ELAN…)
 
+## Capturas de tela
+
+![Aba Dispositivo](images/aba-dispositivo.png)
+![Aba Digitais](images/aba-digitais.png)
+![Aba Desbloqueio](images/aba-desbloqueio.png)
+![Aba Ajuda](images/aba-ajuda.png)
+![Diálogo cadastrar dedo](images/dialogo-cadastrar-dedo.png)
+![Diálogo enroll no terminal](images/dialogo-enroll-terminal.png)
+
 ## Requisitos (Fedora)
 
 ```bash
