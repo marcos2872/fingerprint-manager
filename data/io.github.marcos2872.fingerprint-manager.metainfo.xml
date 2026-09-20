@@ -17,7 +17,6 @@
     </p>
   </description>
   <launchable type="desktop-id">io.github.marcos2872.fingerprint-manager.desktop</launchable>
-  <icon type="stock">fingerprint-manager</icon>
   <categories>
     <category>Settings</category>
     <category>Security</category>
@@ -35,6 +34,11 @@
   </developer>
   <content_rating type="oars-1.1" />
   <releases>
+    <release version="1.2.1" date="2026-09-19">
+      <description>
+        <p>Correção de empacotamento: metainfo sem stock icon para passar no appstream-util do RPM.</p>
+      </description>
+    </release>
     <release version="1.2.0" date="2026-09-20">
       <description>
         <p>Versão publicável na loja: APP_ID válido, metainfo AppStream e service D-Bus; botão GitHub na Ajuda; instalação via COPR.</p>

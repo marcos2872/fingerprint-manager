@@ -1,5 +1,5 @@
 Name:           fingerprint-manager
-Version:        1.2.0
+Version:        1.2.1
 Release:        1%{?dist}
 Summary:        Gerenciador de impressão digital (GTK4/Adwaita + fprintd + authselect)
 License:        MIT
@@ -70,6 +70,8 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
 %{_datadir}/icons/hicolor/scalable/apps/fingerprint-manager.svg
 
 %changelog
+* Sat Sep 19 2026 dev <dev@example.com> - 1.2.1-1
+- Metainfo sem stock icon (appstream-util do %check rejeitava); loja usa o Icon= do .desktop via launchable
 * Sun Sep 20 2026 dev <dev@example.com> - 1.2.0-1
 - Publicável na loja: APP_ID válido, metainfo AppStream, service D-Bus; botão GitHub na Ajuda; docs de instalação via COPR
 * Sat Sep 19 2026 dev <dev@example.com> - 1.1.0-1
