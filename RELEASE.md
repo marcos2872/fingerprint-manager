@@ -57,3 +57,58 @@ gh release create vX.Y.Z ~/rpmbuild/RPMS/noarch/fingerprint-manager-X.Y.Z-*.noar
 - Regra da tag: formato `vX.Y.Z` numérico e **maior que `APP_VERSION`**
   (ex: app em `1.0.0` + tag `v1.1.0` = notifica; tag `v1.0.0` = não notifica).
 - O `.rpm` precisa ser gerado da árvore commitada (sem `git status` sujo).
+
+## 5. Publicar no COPR (repo de terceiros)
+
+O COPR **não** é o repo oficial do Fedora: o usuário precisa de
+`dnf copr enable` uma vez antes do `dnf install`. O passo 2 já gera o
+`.src.rpm` necessário (`~/rpmbuild/SRPMS/`).
+
+```bash
+sudo dnf install -y copr-cli   # só na primeira vez
+```
+
+Autenticação (só na primeira vez): entre em
+`https://copr.fedorainfracloud.org` com a conta Fedora, copie
+login/username/token em `https://copr.fedorainfracloud.org/api/` e
+salve no **arquivo** `~/.config/copr` (atenção: é um arquivo, não um
+diretório; seção `[copr-cli]`):
+
+```ini
+[copr-cli]
+login = <login da página /api>
+username = marcos2872
+token = <token da página /api>
+copr_url = https://copr.fedorainfracloud.org
+```
+
+```bash
+chmod 600 ~/.config/copr
+copr-cli whoami   # confere: deve imprimir o usuário
+```
+
+Criar o projeto (só na primeira vez; chroots atuais em
+`copr-cli list-chroots`):
+
+```bash
+copr-cli create fingerprint-manager \
+  --chroot fedora-43-x86_64 --chroot fedora-44-x86_64 \
+  --description "Gerenciador de impressão digital (GTK4/Adwaita + fprintd)" \
+  --instructions "sudo dnf copr enable marcos2872/fingerprint-manager && sudo dnf install fingerprint-manager"
+```
+
+Subir o build a cada release (usa o `.src.rpm` do passo 2):
+
+```bash
+VERSION=X.Y.Z
+copr-cli build fingerprint-manager \
+  ~/rpmbuild/SRPMS/fingerprint-manager-$VERSION-1.fc*.src.rpm
+# acompanha até "succeeded" (pode interromper o watch com Ctrl+C)
+```
+
+Instalação pelo usuário final:
+
+```bash
+sudo dnf copr enable marcos2872/fingerprint-manager
+sudo dnf install fingerprint-manager
+```
